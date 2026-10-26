@@ -32,14 +32,23 @@ test.describe("SheAura Luxury Visual & Screenshot Test Suite", () => {
     await page.goto("/");
     await page.waitForLoadState("domcontentloaded");
 
+    // Click intro curtain to dismiss immediately for fast visual testing
+    const curtain = page.locator(".brand-intro-curtain");
+    if (await curtain.isVisible()) {
+      await curtain.click({ force: true }).catch(() => {});
+      await expect(curtain).toBeHidden({ timeout: 5000 }).catch(() => {});
+    }
+
     // Find the Peach Blossom Blush item or button in catalog
     const blushTrigger = page.locator("text=Peach Blossom").first();
-    if (await blushTrigger.isVisible()) {
+    if (await blushTrigger.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await blushTrigger.scrollIntoViewIfNeeded();
       await blushTrigger.click();
     }
 
     // Capture the primary product showcase screenshot
     const showcase = page.locator("main").first();
+    await expect(showcase).toBeVisible({ timeout: 10000 });
     const screenshot = await showcase.screenshot({
       path: "tests/visual/screenshots/pdp-showcase.png",
     });

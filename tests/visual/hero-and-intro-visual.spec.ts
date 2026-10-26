@@ -32,8 +32,8 @@ test.describe("She'Aura Brand Intro & Elevated 3D Lipstick Hero Section Verifica
   test("Verify refined navbar contrast and interactive 3D lipstick model", async ({ page }, testInfo) => {
     await page.goto("/");
 
-    // Wait for the intro animation (3.4s dwell + 850ms dissolve) to complete naturally
-    await page.waitForTimeout(4400);
+    // Wait for the intro animation (1.6s dwell + 550ms dissolve) to complete naturally
+    await page.waitForTimeout(2500);
 
     // Wait for hero to be fully visible
     const hero = page.locator(".hero-elevated-lipstick");

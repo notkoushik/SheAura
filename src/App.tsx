@@ -654,7 +654,7 @@ function ReelViewerModal({
         >
           <div className="reel-story-progress-bar">
             {reels.map((r, idx) => (
-              <div key={r.id} className="progress-track" onClick={() => onSwitchReel(r)}>
+              <div key={`${r.id}-${idx}`} className="progress-track" onClick={() => onSwitchReel(r)}>
                 <div
                   className="progress-fill"
                   style={{
@@ -856,11 +856,25 @@ function ReelsSection({
       }
     });
 
-    const combined = [...reels];
-    for (const d of dynamicList) {
-      if (!combined.some((r) => r.productName === d.productName && r.videoUrl === d.videoUrl)) {
-        combined.push(d);
+    const combined: Reel[] = [];
+    const seenIds = new Set<string>();
+    const seenVideos = new Set<string>();
+
+    for (const r of reels) {
+      if (!seenIds.has(r.id)) {
+        seenIds.add(r.id);
+        if (r.videoUrl) seenVideos.add(r.videoUrl);
+        combined.push(r);
       }
+    }
+
+    for (const d of dynamicList) {
+      if (seenIds.has(d.id) || (d.videoUrl && seenVideos.has(d.videoUrl))) {
+        continue;
+      }
+      seenIds.add(d.id);
+      if (d.videoUrl) seenVideos.add(d.videoUrl);
+      combined.push(d);
     }
     return combined;
   }, [catalog]);
@@ -1160,7 +1174,7 @@ function ReelsSection({
               const isSelected = reel.id === activeReel.id;
               return (
                 <button
-                  key={reel.id}
+                  key={`${reel.id}-${idx}`}
                   className={`reels-ribbon-card ${isSelected ? "active" : ""}`}
                   onClick={() => setActiveId(reel.id)}
                   aria-pressed={isSelected}
@@ -1338,7 +1352,7 @@ function PdpReelHighlight({
             <div className="pdp-motion-tabs">
               {availableReels.map((r, idx) => (
                 <button
-                  key={r.id || idx}
+                  key={`${r.id || "pdp-reel"}-${idx}`}
                   type="button"
                   className={`pdp-motion-tab ${activeReelIndex === idx ? "active" : ""}`}
                   onClick={() => setActiveReelIndex(idx)}

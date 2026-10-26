@@ -1010,7 +1010,7 @@ img { display: block; width: 100%; }
   overflow: hidden;
   user-select: none;
   touch-action: none;
-  transition: opacity 0.85s cubic-bezier(0.38, 0, 0.24, 1), visibility 0.85s;
+  transition: opacity 0.55s cubic-bezier(0.38, 0, 0.24, 1), visibility 0.55s;
 }
 
 .brand-intro-curtain.is-fading-out {
@@ -1027,13 +1027,13 @@ img { display: block; width: 100%; }
   text-align: center;
   width: min(92vw, 680px);
   padding: 0 20px;
-  transition: transform 0.85s cubic-bezier(0.38, 0, 0.24, 1), opacity 0.85s, filter 0.85s;
+  transition: transform 0.55s cubic-bezier(0.38, 0, 0.24, 1), opacity 0.55s, filter 0.55s;
 }
 
 .brand-intro-content.is-fading-out {
-  transform: scale(1.04) translate3d(0, -8px, 0);
+  transform: scale(1.03) translate3d(0, -6px, 0);
   opacity: 0;
-  filter: blur(6px);
+  filter: blur(4px);
 }
 
 /* Calligraphic ink signature flourish */
@@ -1056,7 +1056,7 @@ img { display: block; width: 100%; }
   inset: 0;
   transform: translateY(115%);
   opacity: 0;
-  animation: brandCharSlideUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: brandCharSlideUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .brand-logo-slice-svg {
@@ -1070,7 +1070,7 @@ img { display: block; width: 100%; }
   inset: 0;
   opacity: 0;
   transform: translateY(10px);
-  animation: brandTaglineFadeIn 0.85s 0.76s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: brandTaglineFadeIn 0.65s 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes brandTaglineFadeIn {
@@ -1109,7 +1109,7 @@ img { display: block; width: 100%; }
   height: 1px;
   background: #c59868;
   margin: 22px auto 14px;
-  animation: hairlineExpand 0.75s 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: hairlineExpand 0.55s 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes hairlineExpand {

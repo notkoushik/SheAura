@@ -19,21 +19,21 @@ const PATH_LAST_A =
 
 // Discrete letter slices with zero cross-character interference and full ascender/descender clearance
 const LETTER_SLICES = [
-  { id: "S", clip: "polygon(0% -10%, 18.5% -10%, 18.5% 115%, 0% 115%)", path: PATH_SHE, delay: 0.14 },
-  { id: "H", clip: "polygon(18.0% -10%, 31.5% -10%, 31.5% 115%, 18.0% 115%)", path: PATH_SHE, delay: 0.22 },
-  { id: "E", clip: "polygon(31.0% -10%, 42.0% -10%, 42.0% 115%, 31.0% 115%)", path: PATH_SHE, delay: 0.30 },
-  { id: "apostrophe", clip: "polygon(41.5% -10%, 44.5% -10%, 44.5% 115%, 41.5% 115%)", path: PATH_APOSTROPHE, delay: 0.38 },
-  { id: "A1", clip: "polygon(42.0% -10%, 58.5% -10%, 58.5% 115%, 42.0% 115%)", path: PATH_AUR, delay: 0.46 },
-  { id: "U", clip: "polygon(58.0% -10%, 71.0% -10%, 71.0% 115%, 58.0% 115%)", path: PATH_AUR, delay: 0.54 },
-  { id: "R", clip: "polygon(70.5% -10%, 84.5% -10%, 84.5% 115%, 70.5% 115%)", path: PATH_AUR, delay: 0.62 },
-  { id: "A2", clip: "polygon(84.0% -10%, 100% -10%, 100% 115%, 84.0% 115%)", path: PATH_LAST_A, delay: 0.70 },
+  { id: "S", clip: "polygon(0% 0%, 18.5% 0%, 18.5% 100%, 0% 100%)", path: PATH_SHE, delay: 0.08 },
+  { id: "H", clip: "polygon(18.0% 0%, 31.5% 0%, 31.5% 100%, 18.0% 100%)", path: PATH_SHE, delay: 0.14 },
+  { id: "E", clip: "polygon(31.0% 0%, 42.0% 0%, 42.0% 100%, 31.0% 100%)", path: PATH_SHE, delay: 0.20 },
+  { id: "apostrophe", clip: "polygon(41.5% 0%, 44.5% 0%, 44.5% 100%, 41.5% 100%)", path: PATH_APOSTROPHE, delay: 0.26 },
+  { id: "A1", clip: "polygon(42.0% 0%, 58.5% 0%, 58.5% 100%, 42.0% 100%)", path: PATH_AUR, delay: 0.32 },
+  { id: "U", clip: "polygon(58.0% 0%, 71.0% 0%, 71.0% 100%, 58.0% 100%)", path: PATH_AUR, delay: 0.38 },
+  { id: "R", clip: "polygon(70.5% 0%, 84.5% 0%, 84.5% 100%, 70.5% 100%)", path: PATH_AUR, delay: 0.44 },
+  { id: "A2", clip: "polygon(84.0% 0%, 100% 0%, 100% 100%, 84.0% 100%)", path: PATH_LAST_A, delay: 0.50 },
 ];
 
 export default function BrandIntro({ onComplete }: BrandIntroProps) {
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    // Dwell 3.4s for smooth staggered reveal of all official logo glyphs,
+    // Dwell 1.6s for snappy, refined staggered reveal of all official logo glyphs,
     // then cross-dissolve seamlessly into the elevated hero section
     if (typeof window !== "undefined" && (window as any).__FREEZE_INTRO__) {
       return;
@@ -41,7 +41,7 @@ export default function BrandIntro({ onComplete }: BrandIntroProps) {
 
     const timer = setTimeout(() => {
       triggerDissolve();
-    }, 3400);
+    }, 1600);
 
     return () => clearTimeout(timer);
   }, []);
@@ -51,7 +51,7 @@ export default function BrandIntro({ onComplete }: BrandIntroProps) {
     setIsFadingOut(true);
     setTimeout(() => {
       onComplete();
-    }, 850);
+    }, 550);
   };
 
   useEffect(() => {
@@ -66,9 +66,10 @@ export default function BrandIntro({ onComplete }: BrandIntroProps) {
       className={`brand-intro-curtain ${isFadingOut ? "is-fading-out" : ""}`}
       onClick={triggerDissolve}
       onTouchStart={triggerDissolve}
+      onPointerDown={triggerDissolve}
       role="presentation"
       aria-hidden="true"
-      title="Click anywhere to proceed directly"
+      title="Click or tap anywhere to proceed"
     >
       <div className={`brand-intro-content ${isFadingOut ? "is-fading-out" : ""}`}>
         {/* Authentic She'Aura Logo with Staggered Letter Glyphs (No top thread) */}
@@ -77,7 +78,10 @@ export default function BrandIntro({ onComplete }: BrandIntroProps) {
             <div
               key={slice.id}
               className="brand-logo-slice-mask"
-              style={{ clipPath: slice.clip }}
+              style={{
+                clipPath: slice.clip,
+                WebkitClipPath: slice.clip,
+              }}
             >
               <div
                 className="brand-logo-slice-glyph"
