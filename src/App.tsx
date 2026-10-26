@@ -5,6 +5,7 @@ import CartView from "./CartView";
 import WishlistView from "./WishlistView";
 import InciDisclosureDrawer from "./InciDisclosureDrawer";
 import SheAuraLogo from "./SheAuraLogo";
+import Lipstick3DViewer, { LIPSTICK_SHADES, LipstickShade } from "./Lipstick3DViewer";
 import { getProductInciDetails } from "./lib/inciData";
 
 // Lazy-load heavy administrative studio console and secondary portals to optimize public bundle
@@ -1919,6 +1920,7 @@ export default function App() {
   const [activeModalReel, setActiveModalReel] = useState<Reel | null>(null);
   const [showIntro, setShowIntro] = useState(true);
   const [shopCategory, setShopCategory] = useState<string>("All Pieces");
+  const [heroShade, setHeroShade] = useState<LipstickShade>(LIPSTICK_SHADES[0]);
 
   // Cart & Wishlist State with LocalStorage Persistence
   const [cartItems, setCartItems] = useState<CartItem[]>(() => getInitialCart(defaultProducts));
@@ -2370,9 +2372,9 @@ export default function App() {
           </div>
         </header>
 
-        {/* Elevated Lipstick Showcase Stage */}
+        {/* Elevated Lipstick Showcase Stage with Interactive 3D Model */}
         <div className="hero-content shell hero-split-stage">
-          {/* Left Column: Editorial Copy & Purchase Action */}
+          {/* Left Column: Editorial Copy & Live Customized Shade Action */}
           <div className="hero-copy-column">
             <div className="hero-eyebrow-badge">
               <span className="hero-badge-dot" />
@@ -2386,12 +2388,12 @@ export default function App() {
             </p>
 
             <div className="hero-specs-row">
-              <div className="hero-spec-chip">
-                <span className="chip-swatch" style={{ background: "#a81920" }} />
-                <span>Scarlet Rose</span>
+              <div className="hero-spec-chip" title={`Current Selected Shade: ${heroShade.name}`}>
+                <span className="chip-swatch" style={{ background: heroShade.hex }} />
+                <span>{heroShade.name}</span>
               </div>
               <div className="hero-spec-chip">
-                <span>Hydrating Matte</span>
+                <span>{heroShade.finish}</span>
               </div>
               <div className="hero-spec-chip">
                 <span>Min 8H Wear</span>
@@ -2407,12 +2409,15 @@ export default function App() {
                 className="hero-primary-shop-btn"
                 onClick={() => {
                   if (featuredProduct) {
-                    setSelectedProduct(featuredProduct);
+                    setSelectedProduct({
+                      ...featuredProduct,
+                      name: `${featuredProduct.name}`,
+                    });
                     window.scrollTo({ top: 0, behavior: "instant" });
                   }
                 }}
               >
-                <span>Shop Scarlet Rose · ₹1,099.00</span>
+                <span>Shop {heroShade.name} · ₹1,099.00</span>
                 <Icon name="arrow" />
               </button>
               <a href="#collections" className="hero-secondary-explore-btn">
@@ -2421,32 +2426,17 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Column: Hero Elevated Lipstick Showcase */}
+          {/* Right Column: Interactive Three.js 3D Lipstick Model */}
           <div className="hero-lipstick-stage">
-            <div className="lipstick-halo-glow" />
-            <div
-              className="lipstick-pedestal-card"
-              onClick={() => {
+            <Lipstick3DViewer
+              onSelectShade={(shade) => setHeroShade(shade)}
+              onOpenPdp={(shade) => {
                 if (featuredProduct) {
                   setSelectedProduct(featuredProduct);
                   window.scrollTo({ top: 0, behavior: "instant" });
                 }
               }}
-              title="Click to view Scarlet Rose Lipstick"
-            >
-              <img
-                src={resolveAsset("/products/Minimal_design/Scarlet Rose Lipstick_still.png")}
-                alt="She'Aura Scarlet Rose Lipstick elevated on travertine pedestal"
-                className="hero-elevated-photo"
-              />
-              <div className="hero-floating-shimmer-tag">
-                <span className="shimmer-dot" />
-                <div className="shimmer-text">
-                  <strong>Scarlet Rose Lipstick</strong>
-                  <span>Hand-Embossed Floral Bullet · Gold Brass Casing</span>
-                </div>
-              </div>
-            </div>
+            />
           </div>
         </div>
 

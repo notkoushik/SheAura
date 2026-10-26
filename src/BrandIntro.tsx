@@ -17,27 +17,31 @@ const PATH_AUR =
 const PATH_LAST_A =
   "M341.87,61.51h17.65c-1.56-.51-2.87-1.44-3.89-2.75-1.02-1.38-1.86-2.78-2.48-4.22L332.17.72l-20.82,53.82c-.6,1.56-1.53,2.96-2.84,4.28-1.32,1.32-2.69,2.21-4.16,2.69h13.13c-1.41-.42-2.54-1.05-3.44-1.94-.9-.93-1.35-2.15-1.35-3.68,0-.9.27-2.18.78-3.8.54-1.65,1.17-3.35,1.86-5.09.72-1.76,1.38-3.44,2-5.03.66-1.62,1.17-2.81,1.5-3.62h20.22c.33.84.84,2.09,1.52,3.8.72,1.73,1.41,3.53,2.12,5.38.75,1.88,1.41,3.65,1.98,5.27.6,1.65.87,2.78.87,3.44,0,.99-.36,2.03-1.05,3.14-.72,1.11-1.58,1.82-2.63,2.12ZM319.07,37.37l9.81-25.25,9.66,25.25h-19.48Z";
 
-// Discrete letter slices with zero cross-character interference
+// Discrete letter slices with zero cross-character interference and full ascender/descender clearance
 const LETTER_SLICES = [
-  { id: "S", clip: "polygon(0% 0%, 17.5% 0%, 17.5% 82%, 0% 82%)", path: PATH_SHE, delay: 0.14 },
-  { id: "H", clip: "polygon(17.5% 0%, 30.5% 0%, 30.5% 82%, 17.5% 82%)", path: PATH_SHE, delay: 0.22 },
-  { id: "E", clip: "polygon(30.5% 0%, 41.5% 0%, 41.5% 82%, 30.5% 82%)", path: PATH_SHE, delay: 0.30 },
-  { id: "apostrophe", clip: "polygon(41.5% 0%, 45.8% 0%, 45.8% 82%, 41.5% 82%)", path: PATH_APOSTROPHE, delay: 0.38 },
-  { id: "A1", clip: "polygon(45.8% 0%, 58.8% 0%, 58.8% 82%, 45.8% 82%)", path: PATH_AUR, delay: 0.46 },
-  { id: "U", clip: "polygon(58.8% 0%, 71.5% 0%, 71.5% 82%, 58.8% 82%)", path: PATH_AUR, delay: 0.54 },
-  { id: "R", clip: "polygon(71.5% 0%, 86.5% 0%, 86.5% 82%, 71.5% 82%)", path: PATH_AUR, delay: 0.62 },
-  { id: "A2", clip: "polygon(86.5% 0%, 100% 0%, 100% 82%, 86.5% 82%)", path: PATH_LAST_A, delay: 0.70 },
+  { id: "S", clip: "polygon(0% -10%, 18.5% -10%, 18.5% 115%, 0% 115%)", path: PATH_SHE, delay: 0.14 },
+  { id: "H", clip: "polygon(18.0% -10%, 31.5% -10%, 31.5% 115%, 18.0% 115%)", path: PATH_SHE, delay: 0.22 },
+  { id: "E", clip: "polygon(31.0% -10%, 42.0% -10%, 42.0% 115%, 31.0% 115%)", path: PATH_SHE, delay: 0.30 },
+  { id: "apostrophe", clip: "polygon(41.5% -10%, 44.5% -10%, 44.5% 115%, 41.5% 115%)", path: PATH_APOSTROPHE, delay: 0.38 },
+  { id: "A1", clip: "polygon(42.0% -10%, 58.5% -10%, 58.5% 115%, 42.0% 115%)", path: PATH_AUR, delay: 0.46 },
+  { id: "U", clip: "polygon(58.0% -10%, 71.0% -10%, 71.0% 115%, 58.0% 115%)", path: PATH_AUR, delay: 0.54 },
+  { id: "R", clip: "polygon(70.5% -10%, 84.5% -10%, 84.5% 115%, 70.5% 115%)", path: PATH_AUR, delay: 0.62 },
+  { id: "A2", clip: "polygon(84.0% -10%, 100% -10%, 100% 115%, 84.0% 115%)", path: PATH_LAST_A, delay: 0.70 },
 ];
 
 export default function BrandIntro({ onComplete }: BrandIntroProps) {
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    // Dwell 2.3s for smooth staggered reveal of all official logo glyphs,
+    // Dwell 3.4s for smooth staggered reveal of all official logo glyphs,
     // then cross-dissolve seamlessly into the elevated hero section
+    if (typeof window !== "undefined" && (window as any).__FREEZE_INTRO__) {
+      return;
+    }
+
     const timer = setTimeout(() => {
       triggerDissolve();
-    }, 2300);
+    }, 3400);
 
     return () => clearTimeout(timer);
   }, []);

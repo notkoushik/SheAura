@@ -1048,7 +1048,7 @@ img { display: block; width: 100%; }
 .brand-logo-slice-mask {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .brand-logo-slice-glyph {
@@ -1332,78 +1332,278 @@ img { display: block; width: 100%; }
   filter: blur(40px);
 }
 
-.lipstick-pedestal-card {
+/* 3D Lipstick Interactive Stage */
+.lipstick-3d-stage-wrapper {
   position: relative;
-  width: min(440px, 94%);
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  z-index: 3;
+}
+
+.lipstick-3d-display-frame {
+  position: relative;
+  width: 100%;
   aspect-ratio: 1 / 1.25;
-  border-radius: 20px;
+  border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 35px 90px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(223, 184, 149, 0.22);
-  cursor: pointer;
-  background: #190c07;
-  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s;
+  background: radial-gradient(circle at 50% 45%, #24130c 0%, #150a06 80%, #0d0604 100%);
+  border: 1px solid rgba(223, 184, 149, 0.32);
+  box-shadow: 0 35px 90px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(223, 184, 149, 0.18);
+  display: flex;
+  flex-direction: column;
 }
 
-.lipstick-pedestal-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 45px 110px rgba(168, 25, 32, 0.35), 0 0 0 1.5px rgba(223, 184, 149, 0.5);
+.lipstick-3d-canvas-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  z-index: 2;
 }
 
-.hero-elevated-photo {
+.lipstick-3d-canvas-container:active {
+  cursor: grabbing;
+}
+
+.lipstick-still-photo-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+.lipstick-still-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.lipstick-pedestal-card:hover .hero-elevated-photo {
-  transform: scale(1.04);
-}
-
-.hero-floating-shimmer-tag {
+/* Top 3D Control Bar */
+.lipstick-3d-top-controls {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
-  right: 20px;
-  background: rgba(20, 9, 6, 0.88);
-  backdrop-filter: blur(14px);
-  padding: 12px 18px;
-  border-radius: 12px;
-  border: 1px solid rgba(223, 184, 149, 0.3);
+  top: 16px;
+  left: 16px;
+  right: 16px;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 10;
+  pointer-events: auto;
 }
 
-.shimmer-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #a81920;
-  box-shadow: 0 0 10px #a81920;
-  flex-shrink: 0;
+.mode-toggle-pill {
+  display: inline-flex;
+  background: rgba(18, 9, 6, 0.82);
+  border: 1px solid rgba(223, 184, 149, 0.3);
+  border-radius: 999px;
+  padding: 3px;
+  backdrop-filter: blur(14px);
 }
 
-.shimmer-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: left;
+.mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.22s ease;
 }
 
-.shimmer-text strong {
-  color: #ffffff;
-  font-size: 11px;
-  letter-spacing: 0.06em;
+.mode-btn.active {
+  background: #dfb895;
+  color: #1b100c;
+  box-shadow: 0 4px 14px rgba(223, 184, 149, 0.35);
 }
 
-.shimmer-text span {
-  color: rgba(223, 184, 149, 0.85);
+.twist-bullet-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(18, 9, 6, 0.82);
+  border: 1px solid rgba(223, 184, 149, 0.3);
+  color: #dfb895;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  transition: all 0.2s ease;
+}
+
+.twist-bullet-btn:hover {
+  background: rgba(223, 184, 149, 0.18);
+  border-color: #dfb895;
+}
+
+/* Floating Hint */
+.lipstick-3d-hint-tag {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(18, 9, 6, 0.68);
+  border: 1px solid rgba(223, 184, 149, 0.25);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 7.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  pointer-events: none;
+  z-index: 5;
+  backdrop-filter: blur(10px);
+}
+
+/* Bottom Shade Switcher Glass Dock */
+.lipstick-shade-switcher-dock {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: rgba(18, 9, 6, 0.88);
+  border: 1px solid rgba(223, 184, 149, 0.35);
+  border-radius: 16px;
+  padding: 14px 18px;
+  z-index: 10;
+  backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dock-shade-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+
+.dock-shade-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dock-bullet-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor;
+  flex-shrink: 0;
+}
+
+.dock-shade-header strong {
+  color: #ffffff;
+  font-size: 11.5px;
+  letter-spacing: 0.05em;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 600;
+}
+
+.dock-finish-badge {
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(223, 184, 149, 0.15);
+  color: #dfb895;
+  border: 1px solid rgba(223, 184, 149, 0.3);
+}
+
+.dock-shade-desc {
+  margin: 0;
+  font-size: 7.5px;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.dock-shade-swatches {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dock-swatch-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s, box-shadow 0.2s;
+}
+
+.dock-swatch-btn:hover {
+  transform: scale(1.15);
+  border-color: #dfb895;
+}
+
+.dock-swatch-btn.selected {
+  border-color: #dfb895;
+  transform: scale(1.18);
+  box-shadow: 0 0 14px rgba(223, 184, 149, 0.5);
+}
+
+.swatch-check-icon {
+  width: 13px;
+  height: 13px;
+  color: #ffffff;
+  stroke-width: 3;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+.dock-pdp-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: rgba(223, 184, 149, 0.12);
+  border: 1px solid rgba(223, 184, 149, 0.3);
+  color: #dfb895;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dock-pdp-action-btn:hover {
+  background: #dfb895;
+  color: #1b100c;
+}
+
+.icon-mini {
+  width: 13px;
+  height: 13px;
 }
 
 @media (max-width: 900px) {
@@ -1457,8 +1657,31 @@ img { display: block; width: 100%; }
               linear-gradient(0deg, #2c140e 0%, rgba(44, 20, 14, 0.5) 30px, transparent 80px);
   pointer-events: none;
 }
-.nav { position: relative; z-index: 5; top: 18px; height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; background: linear-gradient(90deg, rgba(43,10,5,.6), rgba(91,51,36,.25)); box-shadow: 0 15px 45px rgba(30,8,3,.18); backdrop-filter: blur(13px); }
-.nav::after { content: ""; position: absolute; left: 38px; right: 38px; bottom: -19px; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,224,196,.55), transparent); }
+.nav {
+  position: relative;
+  z-index: 5;
+  top: 18px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  border-radius: 999px;
+  background: rgba(250, 246, 240, 0.94);
+  border: 1px solid rgba(223, 184, 149, 0.55);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.38), inset 0 1px 2px rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(28px) saturate(180%);
+  transition: all 0.3s ease;
+}
+.nav::after {
+  content: "";
+  position: absolute;
+  left: 48px;
+  right: 48px;
+  bottom: -15px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(223, 184, 149, 0.45), transparent);
+}
 .brand { display: flex; flex-direction: column; width: max-content; font-family: "Cormorant Garamond", serif; font-size: 31px; line-height: .7; letter-spacing: -.05em; }
 .brand span { margin-top: 8px; font: 5px "Montserrat", sans-serif; letter-spacing: .45em; text-align: center; }
 .brand-light { color: white; }
@@ -1473,11 +1696,11 @@ img { display: block; width: 100%; }
   opacity: 0.85;
 }
 .nav .brand-logo-svg {
-  color: #191970; /* SheAura Authentic Royal Midnight Navy */
+  color: #191970; /* Authentic SheAura Royal Midnight Navy with 12:1 luminous contrast against frosted silk */
   filter: none;
 }
 .cine-hero .nav .brand-logo-svg {
-  color: #191970; /* Sharp, high-contrast signature royal navy on pale ivory film */
+  color: #191970;
 }
 .product-brand .brand-logo-svg {
   color: #191970;
@@ -1507,9 +1730,29 @@ img { display: block; width: 100%; }
   .brand-animated .brand-name,
   .brand-animated .brand-tagline { animation: none; }
 }
-.nav-links { display: flex; gap: 38px; margin-left: auto; margin-right: 64px; }
-.nav-links a { position: relative; font-size: 10px; }
-.nav-links a::after { content: ""; position: absolute; left: 0; right: 100%; bottom: -8px; height: 1px; background: currentColor; transition: right .25s; }
+.nav-links { display: flex; gap: 36px; margin-left: auto; margin-right: 56px; }
+.nav-links a {
+  position: relative;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #21130f;
+  transition: color 0.2s ease;
+}
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -6px;
+  height: 1.5px;
+  background: #a81920;
+  transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-links a:hover {
+  color: #a81920;
+}
 .nav-links a:hover::after { right: 0; }
 .mobile-nav-hub { display: none; }
 .mobile-nav-categories { display: contents; }
@@ -1517,11 +1760,34 @@ img { display: block; width: 100%; }
 .mobile-dock-nav { display: none; }
 .mobile-account-link { display: none; }
 .nav-actions { display: flex; align-items: center; gap: 18px; }
-.nav-actions button { position: relative; padding: 0; border: 0; background: none; color: white; }
+.nav-actions button {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #21130f;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.nav-actions button:hover {
+  color: #a81920;
+  transform: translateY(-1px);
+}
 .account-nav-btn { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s ease; }
 .account-nav-btn:hover { transform: translateY(-1px); }
 .account-nav-initials { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #dfb895, #c18847); color: #2b130c; font-size: 8px; font-weight: 700; letter-spacing: 0.04em; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.4); }
-.nav-actions .bag span { position: absolute; top: -9px; right: -7px; min-width: 14px; height: 14px; border-radius: 50%; background: var(--cream); color: var(--ink); font-size: 8px; line-height: 14px; }
+.nav-actions .bag span {
+  position: absolute;
+  top: -9px;
+  right: -7px;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #a81920;
+  color: #ffffff;
+  font-size: 8px;
+  line-height: 15px;
+  font-weight: 700;
+}
 .menu-button { display: none; }
 .hero-content {
   position: relative;
