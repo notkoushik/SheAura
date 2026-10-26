@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { Rotate3d, Sparkles, Eye, ArrowRight, Check } from "lucide-react";
 
 export interface LipstickShade {
@@ -9,40 +11,50 @@ export interface LipstickShade {
   colorHex: number;
   description: string;
   finish: string;
+  bulletTexture: string;
+  stillPhoto: string;
 }
 
 export const LIPSTICK_SHADES: LipstickShade[] = [
   {
     id: "scarlet-rose",
     name: "Scarlet Rose",
-    hex: "#9e1923",
-    colorHex: 0x9e1923,
-    description: "Iconic Velvet Damask Crimson · Signature Maison Glide",
+    hex: "#b71d28",
+    colorHex: 0xb71d28,
+    description: "Iconic Velvet Damask Crimson · Hand-Carved Nightingale Relief",
     finish: "Hydrating Matte",
+    bulletTexture: "/products/3D/refined/bullet_scarlet.jpg",
+    stillPhoto: "/products/3D/red.jpg",
   },
   {
     id: "roseberry",
     name: "Roseberry",
-    hex: "#6c1c38",
-    colorHex: 0x6c1c38,
-    description: "Deep Ripe Mulberry · Noir Evening Allure",
+    hex: "#7e1932",
+    colorHex: 0x7e1932,
+    description: "Deep Ripe Mulberry · Noir Imperial Allure",
     finish: "Velvet Satin",
+    bulletTexture: "/products/3D/refined/bullet_roseberry.jpg",
+    stillPhoto: "/products/3D/other.jpg",
   },
   {
     id: "blush-rose",
     name: "Blush Rose",
-    hex: "#b86d6d",
-    colorHex: 0xb86d6d,
+    hex: "#c46e72",
+    colorHex: 0xc46e72,
     description: "Sunlit Dusty Petal Nude · Bare Lip Sophistication",
     finish: "Hydrating Matte",
+    bulletTexture: "/products/3D/refined/bullet_blush.jpg",
+    stillPhoto: "/products/3D/red.jpg",
   },
   {
     id: "orchid",
     name: "Orchid",
-    hex: "#7d345b",
-    colorHex: 0x7d345b,
+    hex: "#6b2247",
+    colorHex: 0x6b2247,
     description: "Smoked Mauve Plum · Contemporary Botanical Pigment",
     finish: "Velvet Matte",
+    bulletTexture: "/products/3D/refined/bullet_orchid.jpg",
+    stillPhoto: "/products/3D/other.jpg",
   },
 ];
 
@@ -55,113 +67,58 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
   const mountRef = useRef<HTMLDivElement>(null);
   const [activeShade, setActiveShade] = useState<LipstickShade>(LIPSTICK_SHADES[0]);
   const [isTwistedUp, setIsTwistedUp] = useState(true);
-  const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [viewMode, setViewMode] = useState<"3d" | "photo">("3d");
-  const [hasInteracted, setHasInteracted] = useState(false);
 
   // References for live Three.js scene updates
-  const bulletMatRef = useRef<THREE.MeshPhysicalMaterial | null>(null);
+  const bulletMeshRef = useRef<THREE.Mesh | null>(null);
   const bulletGroupRef = useRef<THREE.Group | null>(null);
-  const targetColorRef = useRef<THREE.Color>(new THREE.Color(LIPSTICK_SHADES[0].colorHex));
-  const targetBulletYRef = useRef<number>(1.25);
-  const targetRotationYRef = useRef<number>(0.35);
-  const targetRotationXRef = useRef<number>(0.15);
-
-  const isDraggingRef = useRef(false);
-  const lastPointerRef = useRef({ x: 0, y: 0 });
-  const idleTimerRef = useRef<number | null>(null);
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const targetBulletYRef = useRef<number>(1.85);
+  const texturesMapRef = useRef<Map<string, THREE.Texture>>(new Map());
 
   // Handle shade selection
   const handleShadeChange = (shade: LipstickShade) => {
     setActiveShade(shade);
-    targetColorRef.current = new THREE.Color(shade.colorHex);
     onSelectShade?.(shade);
+
+    if (bulletMeshRef.current) {
+      const mat = bulletMeshRef.current.material as THREE.MeshPhysicalMaterial;
+      const cachedTex = texturesMapRef.current.get(shade.id);
+      if (cachedTex) {
+        mat.map = cachedTex;
+        mat.needsUpdate = true;
+      }
+      mat.color.setHex(shade.colorHex);
+      mat.sheenColor.setHex(shade.colorHex);
+    }
   };
 
   // Toggle bullet twist up / down
   const toggleTwist = () => {
     const nextState = !isTwistedUp;
     setIsTwistedUp(nextState);
-    targetBulletYRef.current = nextState ? 1.25 : 0.2;
+    targetBulletYRef.current = nextState ? 1.85 : 0.72;
   };
 
-  // Generate embossed floral bump map texture
-  const createFloralBumpTexture = useCallback(() => {
+  // Generate procedural contact shadow plane texture
+  const createContactShadowTexture = useCallback(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 512;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
-    ctx.fillStyle = "#808080";
-    ctx.fillRect(0, 0, 512, 512);
+    ctx.clearRect(0, 0, 512, 512);
+    const grad = ctx.createRadialGradient(256, 256, 30, 256, 256, 250);
+    grad.addColorStop(0, "rgba(0, 0, 0, 0.75)");
+    grad.addColorStop(0.35, "rgba(0, 0, 0, 0.45)");
+    grad.addColorStop(0.7, "rgba(0, 0, 0, 0.12)");
+    grad.addColorStop(1, "rgba(0, 0, 0, 0)");
 
-    // Procedural delicate botanical floral relief lines
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    for (let i = 0; i < 7; i++) {
-      const cy = 60 + i * 65;
-      // Rose petal curves
-      ctx.moveTo(120, cy);
-      ctx.bezierCurveTo(200, cy - 35, 312, cy + 35, 392, cy);
-      ctx.moveTo(140, cy + 18);
-      ctx.bezierCurveTo(220, cy + 45, 300, cy - 25, 370, cy + 15);
-    }
-    ctx.stroke();
-
-    // Subtle bird flight feather accents
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let j = 0; j < 5; j++) {
-      const by = 90 + j * 80;
-      ctx.moveTo(220, by);
-      ctx.quadraticCurveTo(256, by - 20, 292, by);
-    }
-    ctx.stroke();
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(2, 4);
-    return texture;
-  }, []);
-
-  // Generate She'Aura engraved gold logo texture for casing front
-  const createCasingLogoTexture = useCallback(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 1024;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    // Base Champagne Gold Gradient
-    const grad = ctx.createLinearGradient(0, 0, 512, 1024);
-    grad.addColorStop(0, "#e8c59c");
-    grad.addColorStop(0.3, "#fff2e0");
-    grad.addColorStop(0.7, "#dfb895");
-    grad.addColorStop(1, "#c59868");
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 512, 1024);
-
-    // Vertical Debossed Brand Text "SHE'AURA"
-    ctx.save();
-    ctx.translate(256, 520);
-    ctx.rotate(-Math.PI / 2);
-    ctx.font = "bold 68px 'Cormorant Garamond', serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.letterSpacing = "0.22em";
-
-    // Subtle debossed shadow
-    ctx.fillStyle = "rgba(43, 10, 5, 0.35)";
-    ctx.fillText("SHE'AURA", 2, 2);
-
-    // Metallic Midnight Navy Engraving
-    ctx.fillStyle = "#191970";
-    ctx.fillText("SHE'AURA", 0, 0);
-    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(256, 256, 250, 0, Math.PI * 2);
+    ctx.fill();
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -171,409 +128,396 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
   useEffect(() => {
     if (viewMode !== "3d" || !mountRef.current) return;
     const container = mountRef.current;
-    const width = container.clientWidth || 420;
-    const height = container.clientHeight || 500;
+    const width = container.clientWidth || 480;
+    const height = container.clientHeight || 580;
 
     // 1. Scene, Camera, Renderer
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 100);
-    camera.position.set(0, 0.3, 7.0);
+    const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
+    camera.position.set(0, 0.22, 9.4);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.35;
+    renderer.toneMappingExposure = 1.38;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
-    // Procedural Studio Environment for Rich Gold Reflections
+    // 2. OrbitControls for smooth, natural 360 rotation
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controlsRef.current = controls;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.0;
+    controls.enableZoom = false; // Prevent hijack of page scroll
+    controls.enablePan = false;
+    controls.minPolarAngle = Math.PI / 3.4;
+    controls.maxPolarAngle = Math.PI / 1.88;
+    controls.target.set(0, 0.18, 0);
+
+    // Pause auto-rotate during user drag; resume after 3.5s idle
+    let resumeTimeout: number | null = null;
+    controls.addEventListener("start", () => {
+      controls.autoRotate = false;
+      if (resumeTimeout) clearTimeout(resumeTimeout);
+    });
+    controls.addEventListener("end", () => {
+      resumeTimeout = window.setTimeout(() => {
+        controls.autoRotate = true;
+      }, 3500);
+    });
+
+    // 3. PMREM Studio Environment for Rich Champagne Gold Metal Reflections
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
     const envScene = new THREE.Scene();
-    envScene.background = new THREE.Color(0x4a2a1d);
+    envScene.background = new THREE.Color(0x28140c);
 
+    // Studio softbox 1: Front Key
     const softbox1 = new THREE.Mesh(
       new THREE.PlaneGeometry(16, 16),
-      new THREE.MeshBasicMaterial({ color: 0xfff6ec })
+      new THREE.MeshBasicMaterial({ color: 0xfffcf5 })
     );
-    softbox1.position.set(5, 6, 7);
+    softbox1.position.set(4, 7, 7);
     softbox1.lookAt(0, 0, 0);
     envScene.add(softbox1);
 
+    // Studio softbox 2: Gold Rim
     const softbox2 = new THREE.Mesh(
-      new THREE.PlaneGeometry(12, 12),
+      new THREE.PlaneGeometry(14, 14),
       new THREE.MeshBasicMaterial({ color: 0xdfb895 })
     );
-    softbox2.position.set(-6, 4, -4);
+    softbox2.position.set(-6, 5, -4);
     softbox2.lookAt(0, 0, 0);
     envScene.add(softbox2);
 
+    // Studio softbox 3: Top Ambient
     const softbox3 = new THREE.Mesh(
       new THREE.PlaneGeometry(14, 14),
-      new THREE.MeshBasicMaterial({ color: 0xffedd5 })
+      new THREE.MeshBasicMaterial({ color: 0xffeedd })
     );
     softbox3.position.set(0, 9, 2);
     softbox3.lookAt(0, 0, 0);
     envScene.add(softbox3);
 
+    // Studio softbox 4: Ruby Bounce
+    const softbox4 = new THREE.Mesh(
+      new THREE.PlaneGeometry(10, 10),
+      new THREE.MeshBasicMaterial({ color: 0xa81920 })
+    );
+    softbox4.position.set(0, -5, 4);
+    softbox4.lookAt(0, 0, 0);
+    envScene.add(softbox4);
+
     scene.environment = pmremGenerator.fromScene(envScene).texture;
 
-    // 2. Multi-point Luxury Studio Lighting Rig
-    const frontKeyLight = new THREE.DirectionalLight(0xfffaef, 4.2);
-    frontKeyLight.position.set(1.5, 4, 6);
-    frontKeyLight.castShadow = true;
-    scene.add(frontKeyLight);
+    // 4. Multi-Point Luxury Studio Lighting Rig
+    const keyLight = new THREE.DirectionalLight(0xfffaef, 4.4);
+    keyLight.position.set(2.5, 4.5, 5.5);
+    keyLight.castShadow = true;
+    scene.add(keyLight);
 
-    const topSoftboxLight = new THREE.DirectionalLight(0xffeedb, 3.8);
-    topSoftboxLight.position.set(0, 8, 3);
-    scene.add(topSoftboxLight);
+    const fillLight = new THREE.DirectionalLight(0xffecd6, 3.2);
+    fillLight.position.set(-3.5, 3.0, 4.0);
+    scene.add(fillLight);
 
-    const goldRimLight = new THREE.DirectionalLight(0xdfb895, 3.2);
-    goldRimLight.position.set(-5, 4, -4);
-    scene.add(goldRimLight);
+    const rimLight = new THREE.DirectionalLight(0xdfb895, 3.6);
+    rimLight.position.set(-5, 4, -4);
+    scene.add(rimLight);
 
-    const rubyBounceLight = new THREE.PointLight(0xa81920, 2.2, 14);
-    rubyBounceLight.position.set(0, -1.8, 3.5);
-    scene.add(rubyBounceLight);
+    const topSoftLight = new THREE.DirectionalLight(0xffffff, 3.0);
+    topSoftLight.position.set(0, 8, 2);
+    scene.add(topSoftLight);
 
-    const ambientLight = new THREE.AmbientLight(0xfff2e5, 2.2);
+    const rubyBounce = new THREE.PointLight(0xa81920, 2.4, 12);
+    rubyBounce.position.set(0, -1.5, 3.5);
+    scene.add(rubyBounce);
+
+    const ambientLight = new THREE.AmbientLight(0xfff2e5, 2.0);
     scene.add(ambientLight);
 
-    // 3. Lipstick Master Hierarchy
+    // 5. Texture Loader & Caching
+    const textureLoader = new THREE.TextureLoader();
+
+    // Preload all shade textures
+    LIPSTICK_SHADES.forEach((shade) => {
+      textureLoader.load(shade.bulletTexture, (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        texturesMapRef.current.set(shade.id, tex);
+
+        if (shade.id === activeShade.id && bulletMeshRef.current) {
+          (bulletMeshRef.current.material as THREE.MeshPhysicalMaterial).map = tex;
+          (bulletMeshRef.current.material as THREE.MeshPhysicalMaterial).needsUpdate = true;
+        }
+      });
+    });
+
+    const bulletNormalMap = textureLoader.load("/products/3D/refined/bullet_normal_seamless.png");
+    bulletNormalMap.wrapS = THREE.RepeatWrapping;
+    bulletNormalMap.wrapT = THREE.ClampToEdgeWrapping;
+
+    const bulletRoughnessMap = textureLoader.load("/products/3D/refined/bullet_roughness.png");
+    bulletRoughnessMap.wrapS = THREE.RepeatWrapping;
+    bulletRoughnessMap.wrapT = THREE.ClampToEdgeWrapping;
+
+    const casingFrontTex = textureLoader.load("/products/3D/refined/sheaura_casing_vertical.jpg");
+    casingFrontTex.colorSpace = THREE.SRGBColorSpace;
+
+    // 6. Master Lipstick Group (Centered vertically at y=0)
     const masterGroup = new THREE.Group();
-    masterGroup.position.set(0, -0.45, 0);
+    masterGroup.position.set(0, -0.38, 0);
     scene.add(masterGroup);
 
-    // Casing Materials with high-polish Champagne Gold Brass luster
-    const casingTexture = createCasingLogoTexture();
-    const goldMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xdfb895,
-      metalness: 0.68,
-      roughness: 0.22,
-      clearcoat: 0.8,
+    // Contact Ground Shadow Disc
+    const shadowTex = createContactShadowTexture();
+    if (shadowTex) {
+      const shadowGeo = new THREE.PlaneGeometry(5.2, 5.2);
+      const shadowMat = new THREE.MeshBasicMaterial({
+        map: shadowTex,
+        transparent: true,
+        opacity: 0.82,
+        depthWrite: false,
+      });
+      const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+      shadowMesh.rotation.x = -Math.PI / 2;
+      shadowMesh.position.y = -1.93;
+      masterGroup.add(shadowMesh);
+    }
+
+    // A. Square Polished Champagne Gold Casing Body
+    const casingGeo = new RoundedBoxGeometry(1.48, 2.35, 1.48, 6, 0.08);
+    const casingGoldMat = new THREE.MeshPhysicalMaterial({
+      color: 0xecd5a4,
+      metalness: 0.94,
+      roughness: 0.14,
+      clearcoat: 0.85,
       clearcoatRoughness: 0.1,
       reflectivity: 0.95,
-      map: casingTexture || undefined,
+      envMapIntensity: 2.8,
     });
-
-    const innerCollarMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf5d2a4,
-      metalness: 0.78,
-      roughness: 0.16,
-    });
-
-    // Outer Gold Brass Casing Body (Beveled Rounded Rectangular Base)
-    const casingShape = new THREE.Shape();
-    const halfW = 0.82;
-    const radius = 0.14;
-    casingShape.moveTo(-halfW + radius, -halfW);
-    casingShape.lineTo(halfW - radius, -halfW);
-    casingShape.quadraticCurveTo(halfW, -halfW, halfW, -halfW + radius);
-    casingShape.lineTo(halfW, halfW - radius);
-    casingShape.quadraticCurveTo(halfW, halfW, halfW - radius, halfW);
-    casingShape.lineTo(-halfW + radius, halfW);
-    casingShape.quadraticCurveTo(-halfW, halfW, -halfW, halfW - radius);
-    casingShape.lineTo(-halfW, -halfW + radius);
-    casingShape.quadraticCurveTo(-halfW, -halfW, -halfW + radius, -halfW);
-
-    const extrudeSettings = { depth: 2.8, bevelEnabled: true, bevelSegments: 6, steps: 1, bevelSize: 0.06, bevelThickness: 0.06 };
-    const casingGeo = new THREE.ExtrudeGeometry(casingShape, extrudeSettings);
-    casingGeo.center();
-    const casingMesh = new THREE.Mesh(casingGeo, goldMaterial);
-    casingMesh.rotation.x = Math.PI / 2;
-    casingMesh.position.y = -0.5;
+    const casingMesh = new THREE.Mesh(casingGeo, casingGoldMat);
+    casingMesh.position.y = -0.75;
     casingMesh.castShadow = true;
     casingMesh.receiveShadow = true;
     masterGroup.add(casingMesh);
 
-    // Inner Metallic Rotating Collar / Ring
-    const collarGeo = new THREE.CylinderGeometry(0.68, 0.68, 0.9, 48);
-    const collarMesh = new THREE.Mesh(collarGeo, innerCollarMaterial);
-    collarMesh.position.y = 1.15;
+    // Front Debossed Logo Plane (Authentic She'Aura Signature)
+    const frontFaceGeo = new THREE.PlaneGeometry(1.38, 2.25);
+    const frontFaceMat = new THREE.MeshPhysicalMaterial({
+      map: casingFrontTex,
+      metalness: 0.90,
+      roughness: 0.16,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.1,
+      reflectivity: 0.9,
+      envMapIntensity: 2.5,
+    });
+    const frontFaceMesh = new THREE.Mesh(frontFaceGeo, frontFaceMat);
+    frontFaceMesh.position.set(0, -0.75, 0.745);
+    masterGroup.add(frontFaceMesh);
+
+    // Casing Top Recess Collar Lip
+    const casingTopRingGeo = new THREE.CylinderGeometry(0.58, 0.58, 0.08, 48);
+    const darkMetalMat = new THREE.MeshStandardMaterial({
+      color: 0x241710,
+      metalness: 0.9,
+      roughness: 0.3,
+    });
+    const casingTopRing = new THREE.Mesh(casingTopRingGeo, darkMetalMat);
+    casingTopRing.position.y = 0.43;
+    masterGroup.add(casingTopRing);
+
+    // B. Inner Mirror Gold Collar (Sleek High-Polish Jewelry Neck)
+    const collarGeo = new THREE.CylinderGeometry(0.52, 0.52, 0.95, 64);
+    const innerCollarMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffe0a0,
+      metalness: 0.98,
+      roughness: 0.06,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      reflectivity: 1.0,
+      envMapIntensity: 3.2,
+    });
+    const collarMesh = new THREE.Mesh(collarGeo, innerCollarMat);
+    collarMesh.position.y = 0.88;
+    collarMesh.castShadow = true;
     masterGroup.add(collarMesh);
 
-    // Stepped Inner Mechanism Collar
-    const stepCollarGeo = new THREE.CylinderGeometry(0.58, 0.58, 0.4, 48);
-    const stepCollarMesh = new THREE.Mesh(stepCollarGeo, goldMaterial);
-    stepCollarMesh.position.y = 1.55;
-    masterGroup.add(stepCollarMesh);
+    // Beveled Torus Collar Rim
+    const collarRimGeo = new THREE.TorusGeometry(0.52, 0.035, 16, 64);
+    const collarRimMesh = new THREE.Mesh(collarRimGeo, innerCollarMat);
+    collarRimMesh.rotation.x = Math.PI / 2;
+    collarRimMesh.position.y = 1.355;
+    masterGroup.add(collarRimMesh);
 
-    // 4. Lipstick Bullet with Beveled Teardrop Chisel Tip & Embossed Relief
-    const floralBump = createFloralBumpTexture();
-    const bulletMaterial = new THREE.MeshPhysicalMaterial({
-      color: activeShade.colorHex,
-      roughness: 0.52,
-      metalness: 0.0,
-      sheen: 1.0,
-      sheenColor: new THREE.Color(0xff88a0),
-      sheenRoughness: 0.4,
-      clearcoat: 0.15,
-      clearcoatRoughness: 0.2,
-      bumpMap: floralBump || undefined,
-      bumpScale: 0.045,
-    });
-    bulletMatRef.current = bulletMaterial;
-
-    const bulletSpot = new THREE.SpotLight(0xffffff, 3.8, 16, Math.PI / 4, 0.4);
-    bulletSpot.position.set(0, 4.5, 5.5);
-    scene.add(bulletSpot);
-
-    // Bullet Geometry with Sculpted Slant Angle
-    const bulletRadius = 0.48;
+    // C. Sculpted Lipstick Bullet with Hand-Carved Imperial Bird & Floral Relief
+    const bulletRadius = 0.44;
     const bulletHeight = 1.65;
-    const bulletGeo = new THREE.CylinderGeometry(bulletRadius, bulletRadius, bulletHeight, 48, 48);
+    const bulletGeo = new THREE.CylinderGeometry(bulletRadius, bulletRadius, bulletHeight, 64, 64);
     const posAttr = bulletGeo.attributes.position;
 
-    // Displace vertices to carve the signature teardrop beveled slant tip
+    // Mathematical teardrop chisel cut
     for (let i = 0; i < posAttr.count; i++) {
       const y = posAttr.getY(i);
       const z = posAttr.getZ(i);
       const x = posAttr.getX(i);
 
-      if (y > 0.15) {
-        // Angled slant cut plane
+      if (y > 0.12) {
+        // Angled chisel slant cut
         const slantOffset = (z / bulletRadius) * 0.42;
         posAttr.setY(i, y - slantOffset);
 
         // Taper upper teardrop tip
-        if (y > 0.5) {
-          const taper = 1.0 - (y - 0.5) * 0.28;
+        if (y > 0.42) {
+          const taper = 1.0 - (y - 0.42) * 0.28;
           posAttr.setX(i, x * taper);
         }
       }
     }
     bulletGeo.computeVertexNormals();
 
-    const bulletGroup = new THREE.Group();
-    bulletGroup.position.y = targetBulletYRef.current;
+    const bulletMaterial = new THREE.MeshPhysicalMaterial({
+      color: activeShade.colorHex,
+      roughness: 0.58,
+      roughnessMap: bulletRoughnessMap,
+      metalness: 0.02,
+      sheen: 0.88,
+      sheenColor: new THREE.Color(activeShade.colorHex),
+      sheenRoughness: 0.38,
+      clearcoat: 0.12,
+      clearcoatRoughness: 0.18,
+      normalMap: bulletNormalMap,
+      normalScale: new THREE.Vector2(1.3, 1.3),
+    });
+
+    const activeTexture = texturesMapRef.current.get(activeShade.id);
+    if (activeTexture) {
+      bulletMaterial.map = activeTexture;
+    }
+
     const bulletMesh = new THREE.Mesh(bulletGeo, bulletMaterial);
     bulletMesh.castShadow = true;
+    bulletMeshRef.current = bulletMesh;
+
+    const bulletGroup = new THREE.Group();
+    bulletGroup.position.y = targetBulletYRef.current;
     bulletGroup.add(bulletMesh);
-    masterGroup.add(bulletGroup);
     bulletGroupRef.current = bulletGroup;
+    masterGroup.add(bulletGroup);
 
-    // 5. Travertine Stone Pedestal & Fallen Crimson Rose Petals
-    const pedestalGeo = new THREE.CylinderGeometry(2.1, 2.3, 0.55, 64);
-    const pedestalMat = new THREE.MeshStandardMaterial({
-      color: 0xc8b8a6,
-      roughness: 0.88,
-      metalness: 0.02,
-    });
-    const pedestalMesh = new THREE.Mesh(pedestalGeo, pedestalMat);
-    pedestalMesh.position.y = -2.1;
-    pedestalMesh.receiveShadow = true;
-    masterGroup.add(pedestalMesh);
-
-    // Fallen Rose Petal Meshes
-    const petalShape = new THREE.Shape();
-    petalShape.moveTo(0, -0.3);
-    petalShape.bezierCurveTo(0.3, -0.2, 0.4, 0.3, 0, 0.5);
-    petalShape.bezierCurveTo(-0.4, 0.3, -0.3, -0.2, 0, -0.3);
-    const petalGeo = new THREE.ShapeGeometry(petalShape);
-    const petalMat = new THREE.MeshPhysicalMaterial({
-      color: 0x991820,
-      roughness: 0.6,
-      metalness: 0.05,
-      sheen: 0.9,
-      sheenColor: new THREE.Color(0xff4466),
-      side: THREE.DoubleSide,
-    });
-
-    const petal1 = new THREE.Mesh(petalGeo, petalMat);
-    petal1.position.set(1.1, -1.8, 0.6);
-    petal1.rotation.set(-Math.PI / 2.3, 0.3, 0.4);
-    petal1.scale.set(0.9, 0.9, 0.9);
-    masterGroup.add(petal1);
-
-    const petal2 = new THREE.Mesh(petalGeo, petalMat);
-    petal2.position.set(-1.0, -1.81, 0.8);
-    petal2.rotation.set(-Math.PI / 2.1, -0.4, -0.6);
-    petal2.scale.set(0.75, 0.75, 0.75);
-    masterGroup.add(petal2);
-
-    // Initial angles
-    masterGroup.rotation.y = targetRotationYRef.current;
-    masterGroup.rotation.x = targetRotationXRef.current;
-
-    // 6. Pointer & Drag Interaction Handlers
-    const onPointerDown = (e: MouseEvent | TouchEvent) => {
-      isDraggingRef.current = true;
-      setHasInteracted(true);
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-      lastPointerRef.current = { x: clientX, y: clientY };
-
-      if (idleTimerRef.current) {
-        window.clearTimeout(idleTimerRef.current);
-        idleTimerRef.current = null;
-      }
-    };
-
-    const onPointerMove = (e: MouseEvent | TouchEvent) => {
-      if (!isDraggingRef.current) return;
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-      const dx = clientX - lastPointerRef.current.x;
-      const dy = clientY - lastPointerRef.current.y;
-      lastPointerRef.current = { x: clientX, y: clientY };
-
-      targetRotationYRef.current += dx * 0.012;
-      targetRotationXRef.current = Math.max(-0.25, Math.min(0.45, targetRotationXRef.current + dy * 0.008));
-    };
-
-    const onPointerUp = () => {
-      isDraggingRef.current = false;
-      // Resume gentle auto-rotation after 1.8s of idle
-      idleTimerRef.current = window.setTimeout(() => {
-        setIsAutoRotating(true);
-      }, 1800);
-    };
-
-    const domEl = renderer.domElement;
-    domEl.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("mousemove", onPointerMove);
-    window.addEventListener("mouseup", onPointerUp);
-
-    domEl.addEventListener("touchstart", onPointerDown, { passive: true });
-    window.addEventListener("touchmove", onPointerMove, { passive: true });
-    window.addEventListener("touchend", onPointerUp);
-
-    // 7. Render Loop with Smooth Physics Interpolation
-    let animationFrameId: number;
-    let clock = new THREE.Clock();
+    // 7. Animation Loop with Smooth Damped Twisting & Orbit
+    let animId: number;
+    const clock = new THREE.Clock();
 
     const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
-      const delta = clock.getDelta();
+      animId = requestAnimationFrame(animate);
+      clock.getDelta();
 
-      // Auto-rotation when not actively dragged
-      if (isAutoRotating && !isDraggingRef.current) {
-        targetRotationYRef.current += 0.008;
-      }
-
-      // Smooth rotational damping
-      masterGroup.rotation.y += (targetRotationYRef.current - masterGroup.rotation.y) * 0.08;
-      masterGroup.rotation.x += (targetRotationXRef.current - masterGroup.rotation.x) * 0.08;
-
-      // Smooth color morphing when shade switches
-      if (bulletMatRef.current) {
-        bulletMatRef.current.color.lerp(targetColorRef.current, 0.1);
-      }
-
-      // Smooth bullet twist position
+      // Smooth twist up / down animation
       if (bulletGroupRef.current) {
-        bulletGroupRef.current.position.y += (targetBulletYRef.current - bulletGroupRef.current.position.y) * 0.12;
+        bulletGroupRef.current.position.y += (targetBulletYRef.current - bulletGroupRef.current.position.y) * 0.08;
       }
 
-      // Floating ambient bob
-      masterGroup.position.y = -0.4 + Math.sin(clock.getElapsedTime() * 1.5) * 0.04;
-
+      controls.update();
       renderer.render(scene, camera);
     };
 
     animate();
 
-    // 8. Responsive Resize
+    // Resize Handler
     const handleResize = () => {
       if (!container) return;
-      const newW = container.clientWidth || 420;
-      const newH = container.clientHeight || 500;
-      camera.aspect = newW / newH;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(newW, newH);
+      renderer.setSize(w, h);
     };
 
     window.addEventListener("resize", handleResize);
 
     return () => {
+      cancelAnimationFrame(animId);
       window.removeEventListener("resize", handleResize);
-      domEl.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("mousemove", onPointerMove);
-      window.removeEventListener("mouseup", onPointerUp);
-      domEl.removeEventListener("touchstart", onPointerDown);
-      window.removeEventListener("touchmove", onPointerMove);
-      window.removeEventListener("touchend", onPointerUp);
-      cancelAnimationFrame(animationFrameId);
+      if (resumeTimeout) clearTimeout(resumeTimeout);
+      controls.dispose();
       renderer.dispose();
-      if (container.contains(domEl)) {
-        container.removeChild(domEl);
-      }
+      pmremGenerator.dispose();
+      casingGeo.dispose();
+      collarGeo.dispose();
+      bulletGeo.dispose();
+      container.innerHTML = "";
     };
-  }, [viewMode, createCasingLogoTexture, createFloralBumpTexture]);
+  }, [viewMode]);
 
   return (
     <div className="lipstick-3d-stage-wrapper">
-      {/* 3D WebGL Canvas Container or Fallback Studio Still */}
       <div className="lipstick-3d-display-frame">
-        {viewMode === "3d" ? (
-          <div
-            ref={mountRef}
-            className="lipstick-3d-canvas-container"
-            title="Drag with cursor/touch to inspect 360°"
-          />
-        ) : (
-          <div className="lipstick-still-photo-container">
-            <img
-              src="/products/Minimal_design/Scarlet Rose Lipstick_still.png"
-              alt="Scarlet Rose Lipstick Still Packshot on Travertine"
-              className="lipstick-still-image"
-            />
-          </div>
-        )}
-
-        {/* Ambient Halo Studio Light Backing */}
-        <div className="lipstick-halo-glow" />
-
-        {/* Top Control Bar: 3D / Photo Mode & Twist Bullet */}
+        {/* Top Controls: 3D / Studio Still Toggle & Twist Action */}
         <div className="lipstick-3d-top-controls">
           <div className="mode-toggle-pill">
             <button
-              type="button"
               className={`mode-btn ${viewMode === "3d" ? "active" : ""}`}
               onClick={() => setViewMode("3d")}
-              title="Interactive 3D WebGL Model"
+              aria-label="3D Interactive Model"
             >
-              <Rotate3d className="icon-mini" /> <span>3D Model</span>
+              <Rotate3d size={12} />
+              <span>3D Model</span>
             </button>
             <button
-              type="button"
               className={`mode-btn ${viewMode === "photo" ? "active" : ""}`}
               onClick={() => setViewMode("photo")}
-              title="High-Res Studio Still Packshot"
+              aria-label="Studio Still Packshot"
             >
-              <Eye className="icon-mini" /> <span>Studio Still</span>
+              <Eye size={12} />
+              <span>Studio Still</span>
             </button>
           </div>
 
           {viewMode === "3d" && (
             <button
-              type="button"
               className="twist-bullet-btn"
               onClick={toggleTwist}
-              title="Twist bullet in/out of golden casing"
+              aria-label={isTwistedUp ? "Twist Bullet Down" : "Twist Bullet Up"}
             >
-              <Sparkles className="icon-mini" />
+              <Sparkles size={11} />
               <span>{isTwistedUp ? "Twist Down" : "Twist Up"}</span>
             </button>
           )}
         </div>
 
-        {/* Floating Hint Overlay (Auto fades after interaction) */}
-        {viewMode === "3d" && !hasInteracted && (
+        {/* Floating Rotation Hint */}
+        {viewMode === "3d" && (
           <div className="lipstick-3d-hint-tag">
-            <Rotate3d className="icon-mini spin-slow" />
+            <Rotate3d size={10} />
             <span>Drag to rotate 360° · Tap shade to customize</span>
           </div>
         )}
 
-        {/* Bottom Interactive Shade Switcher Glass Dock */}
+        {/* Viewport: 3D WebGL Canvas or High-Res Studio Still */}
+        {viewMode === "3d" ? (
+          <div ref={mountRef} className="lipstick-3d-canvas-container" />
+        ) : (
+          <div className="lipstick-still-photo-container">
+            <img
+              src={activeShade.stillPhoto}
+              alt={`${activeShade.name} She'Aura Lipstick Studio Packshot`}
+              className="lipstick-still-image"
+            />
+          </div>
+        )}
+
+        {/* Bottom Floating Shade Switcher Glass Dock */}
         <div className="lipstick-shade-switcher-dock">
           <div className="dock-shade-info">
             <div className="dock-shade-header">
-              <span className="dock-bullet-dot" style={{ background: activeShade.hex }} />
+              <span className="dock-bullet-dot" style={{ backgroundColor: activeShade.hex }} />
               <strong>{activeShade.name}</strong>
               <span className="dock-finish-badge">{activeShade.finish}</span>
             </div>
@@ -582,31 +526,28 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
 
           <div className="dock-shade-swatches">
             {LIPSTICK_SHADES.map((shade) => {
-              const isSelected = shade.id === activeShade.id;
+              const isSelected = activeShade.id === shade.id;
               return (
                 <button
                   key={shade.id}
-                  type="button"
                   className={`dock-swatch-btn ${isSelected ? "selected" : ""}`}
                   style={{ backgroundColor: shade.hex }}
                   onClick={() => handleShadeChange(shade)}
-                  title={`${shade.name} · ${shade.finish}`}
-                  aria-label={`Select shade ${shade.name}`}
+                  aria-label={`Select ${shade.name}`}
+                  title={shade.name}
                 >
-                  {isSelected && <Check className="swatch-check-icon" />}
+                  {isSelected && <Check size={12} className="dock-swatch-check" />}
                 </button>
               );
             })}
           </div>
 
           <button
-            type="button"
             className="dock-pdp-action-btn"
             onClick={() => onOpenPdp?.(activeShade)}
-            title={`View ${activeShade.name} Formula Details`}
           >
             <span>View Formula</span>
-            <ArrowRight className="icon-mini" />
+            <ArrowRight size={13} />
           </button>
         </div>
       </div>

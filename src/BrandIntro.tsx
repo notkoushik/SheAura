@@ -54,10 +54,18 @@ export default function BrandIntro({ onComplete }: BrandIntroProps) {
     }, 850);
   };
 
+  useEffect(() => {
+    (window as any).__DISMISS_INTRO__ = triggerDissolve;
+    return () => {
+      delete (window as any).__DISMISS_INTRO__;
+    };
+  }, [isFadingOut]);
+
   return (
     <div
       className={`brand-intro-curtain ${isFadingOut ? "is-fading-out" : ""}`}
       onClick={triggerDissolve}
+      onTouchStart={triggerDissolve}
       role="presentation"
       aria-hidden="true"
       title="Click anywhere to proceed directly"

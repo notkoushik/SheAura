@@ -32,12 +32,8 @@ test.describe("She'Aura Brand Intro & Elevated 3D Lipstick Hero Section Verifica
   test("Verify refined navbar contrast and interactive 3D lipstick model", async ({ page }, testInfo) => {
     await page.goto("/");
 
-    // Dismiss curtain if still present
-    const curtain = page.locator(".brand-intro-curtain");
-    if (await curtain.count() > 0) {
-      await curtain.click({ force: true }).catch(() => {});
-    }
-    await page.waitForSelector(".brand-intro-curtain", { state: "detached", timeout: 8000 }).catch(() => {});
+    // Wait for the intro animation (3.4s dwell + 850ms dissolve) to complete naturally
+    await page.waitForTimeout(4400);
 
     // Wait for hero to be fully visible
     const hero = page.locator(".hero-elevated-lipstick");
@@ -51,19 +47,21 @@ test.describe("She'Aura Brand Intro & Elevated 3D Lipstick Hero Section Verifica
       const nav = page.locator("header.nav").first();
       await expect(nav).toBeVisible();
       await nav.screenshot({
+        animations: "disabled",
         path: "tests/visual/screenshots/navbar-refined-contrast.png",
       });
     }
 
     // 4. Capture elevated hero section with 3D WebGL Lipstick
     await hero.screenshot({
+      animations: "disabled",
       path: `tests/visual/screenshots/hero-plain-lipstick-elevated-${isMobile ? "mobile" : "desktop"}.png`,
     });
 
     // 5. Test 3D Shade Switcher & Live Customization (Desktop)
     if (!isMobile) {
       // Click Roseberry shade swatch in the 3D dock
-      const roseberryBtn = page.locator("button[aria-label='Select shade Roseberry']").first();
+      const roseberryBtn = page.locator("button[aria-label*='Roseberry']").first();
       if (await roseberryBtn.isVisible()) {
         await roseberryBtn.click();
         await page.waitForTimeout(600);
@@ -73,6 +71,7 @@ test.describe("She'Aura Brand Intro & Elevated 3D Lipstick Hero Section Verifica
         await expect(shopBtn).toBeVisible();
 
         await hero.screenshot({
+          animations: "disabled",
           path: "tests/visual/screenshots/hero-3d-shade-switched.png",
         });
 
@@ -84,6 +83,7 @@ test.describe("She'Aura Brand Intro & Elevated 3D Lipstick Hero Section Verifica
         await expect(pdpH1).toBeVisible({ timeout: 10000 });
 
         await page.screenshot({
+          animations: "disabled",
           path: "tests/visual/screenshots/hero-lipstick-pdp-opened.png",
         });
       }
