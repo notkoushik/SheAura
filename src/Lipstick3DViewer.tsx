@@ -216,28 +216,28 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
     scene.environment = pmremGenerator.fromScene(envScene).texture;
 
     // 4. Multi-Point Luxury Studio Lighting Rig
-    const keyLight = new THREE.DirectionalLight(0xfffaef, 4.4);
+    const keyLight = new THREE.DirectionalLight(0xfffaef, 3.2);
     keyLight.position.set(2.5, 4.5, 5.5);
     keyLight.castShadow = true;
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xffecd6, 3.2);
+    const fillLight = new THREE.DirectionalLight(0xffecd6, 2.6);
     fillLight.position.set(-3.5, 3.0, 4.0);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xdfb895, 3.6);
+    const rimLight = new THREE.DirectionalLight(0xdfb895, 3.2);
     rimLight.position.set(-5, 4, -4);
     scene.add(rimLight);
 
-    const topSoftLight = new THREE.DirectionalLight(0xffffff, 3.0);
+    const topSoftLight = new THREE.DirectionalLight(0xffffff, 2.2);
     topSoftLight.position.set(0, 8, 2);
     scene.add(topSoftLight);
 
-    const rubyBounce = new THREE.PointLight(0xa81920, 2.4, 12);
+    const rubyBounce = new THREE.PointLight(0xa81920, 2.0, 12);
     rubyBounce.position.set(0, -1.5, 3.5);
     scene.add(rubyBounce);
 
-    const ambientLight = new THREE.AmbientLight(0xfff2e5, 2.0);
+    const ambientLight = new THREE.AmbientLight(0xfff2e5, 2.2);
     scene.add(ambientLight);
 
     // 5. Texture Loader & Caching
@@ -384,16 +384,15 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
 
     const bulletMaterial = new THREE.MeshPhysicalMaterial({
       color: activeShade.colorHex,
-      roughness: 0.58,
+      roughness: 0.72,
       roughnessMap: bulletRoughnessMap,
-      metalness: 0.02,
-      sheen: 0.88,
+      metalness: 0.0,
+      sheen: 0.55,
       sheenColor: new THREE.Color(activeShade.colorHex),
-      sheenRoughness: 0.38,
-      clearcoat: 0.12,
-      clearcoatRoughness: 0.18,
+      sheenRoughness: 0.45,
+      clearcoat: 0.0,
       normalMap: bulletNormalMap,
-      normalScale: new THREE.Vector2(1.3, 1.3),
+      normalScale: new THREE.Vector2(0.85, 0.85),
     });
 
     const activeTexture = texturesMapRef.current.get(activeShade.id);
@@ -492,14 +491,6 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
           )}
         </div>
 
-        {/* Floating Rotation Hint */}
-        {viewMode === "3d" && (
-          <div className="lipstick-3d-hint-tag">
-            <Rotate3d size={10} />
-            <span>Drag to rotate 360° · Tap shade to customize</span>
-          </div>
-        )}
-
         {/* Viewport: 3D WebGL Canvas or High-Res Studio Still */}
         {viewMode === "3d" ? (
           <div ref={mountRef} className="lipstick-3d-canvas-container" />
@@ -513,17 +504,9 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
           </div>
         )}
 
-        {/* Bottom Floating Shade Switcher Glass Dock */}
-        <div className="lipstick-shade-switcher-dock">
-          <div className="dock-shade-info">
-            <div className="dock-shade-header">
-              <span className="dock-bullet-dot" style={{ backgroundColor: activeShade.hex }} />
-              <strong>{activeShade.name}</strong>
-              <span className="dock-finish-badge">{activeShade.finish}</span>
-            </div>
-            <p className="dock-shade-desc">{activeShade.description}</p>
-          </div>
-
+        {/* Minimal Floating Shade Swatch Bar (Zero Text Obscuring the 3D Model) */}
+        <div className="lipstick-minimal-swatch-bar">
+          <span className="swatch-bar-name">{activeShade.name}</span>
           <div className="dock-shade-swatches">
             {LIPSTICK_SHADES.map((shade) => {
               const isSelected = activeShade.id === shade.id;
@@ -536,19 +519,11 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
                   aria-label={`Select ${shade.name}`}
                   title={shade.name}
                 >
-                  {isSelected && <Check size={12} className="dock-swatch-check" />}
+                  {isSelected && <Check size={11} className="dock-swatch-check" />}
                 </button>
               );
             })}
           </div>
-
-          <button
-            className="dock-pdp-action-btn"
-            onClick={() => onOpenPdp?.(activeShade)}
-          >
-            <span>View Formula</span>
-            <ArrowRight size={13} />
-          </button>
         </div>
       </div>
     </div>

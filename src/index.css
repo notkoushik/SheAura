@@ -1457,85 +1457,33 @@ img { display: block; width: 100%; }
   border-color: #dfb895;
 }
 
-/* Floating Hint */
-.lipstick-3d-hint-tag {
+/* Bottom Minimal Shade Swatch Bar - Clean Luxury, Zero Obscuring Text */
+.lipstick-minimal-swatch-bar {
   position: absolute;
-  top: 64px;
+  bottom: 14px;
   left: 50%;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 6px 14px;
+  gap: 16px;
+  padding: 8px 20px;
+  background: rgba(22, 11, 7, 0.82);
+  border: 1px solid rgba(223, 184, 149, 0.38);
   border-radius: 999px;
-  background: rgba(18, 9, 6, 0.68);
-  border: 1px solid rgba(223, 184, 149, 0.25);
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 7.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  pointer-events: none;
-  z-index: 5;
-  backdrop-filter: blur(10px);
-}
-
-/* Bottom Shade Switcher Glass Dock */
-.lipstick-shade-switcher-dock {
-  position: absolute;
-  bottom: 16px;
-  left: 16px;
-  right: 16px;
-  background: rgba(18, 9, 6, 0.88);
-  border: 1px solid rgba(223, 184, 149, 0.35);
-  border-radius: 16px;
-  padding: 14px 18px;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.2);
   z-index: 10;
-  backdrop-filter: blur(18px);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
 }
 
-.dock-shade-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: left;
-}
-
-.dock-shade-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dock-bullet-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  box-shadow: 0 0 8px currentColor;
-  flex-shrink: 0;
-}
-
-.dock-shade-header strong {
-  color: #ffffff;
-  font-size: 11.5px;
-  letter-spacing: 0.05em;
+.swatch-bar-name {
   font-family: "Cormorant Garamond", serif;
+  font-size: 13.5px;
   font-weight: 600;
-}
-
-.dock-finish-badge {
-  font-size: 7px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(223, 184, 149, 0.15);
   color: #dfb895;
-  border: 1px solid rgba(223, 184, 149, 0.3);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .dock-shade-desc {
