@@ -12,6 +12,7 @@ export interface LipstickShade {
   description: string;
   finish: string;
   bulletTexture: string;
+  facetTexture: string;
   stillPhoto: string;
 }
 
@@ -24,6 +25,7 @@ export const LIPSTICK_SHADES: LipstickShade[] = [
     description: "Iconic Velvet Damask Crimson · Hand-Carved Nightingale Relief",
     finish: "Hydrating Matte",
     bulletTexture: "/products/3D/refined/bullet_scarlet.jpg",
+    facetTexture: "/products/3D/refined/facet_scarlet.jpg",
     stillPhoto: "/products/3D/red.jpg",
   },
   {
@@ -34,6 +36,7 @@ export const LIPSTICK_SHADES: LipstickShade[] = [
     description: "Deep Ripe Mulberry · Noir Imperial Allure",
     finish: "Velvet Satin",
     bulletTexture: "/products/3D/refined/bullet_roseberry.jpg",
+    facetTexture: "/products/3D/refined/facet_roseberry.jpg",
     stillPhoto: "/products/3D/other.jpg",
   },
   {
@@ -44,6 +47,7 @@ export const LIPSTICK_SHADES: LipstickShade[] = [
     description: "Sunlit Dusty Petal Nude · Bare Lip Sophistication",
     finish: "Hydrating Matte",
     bulletTexture: "/products/3D/refined/bullet_blush.jpg",
+    facetTexture: "/products/3D/refined/facet_blush.jpg",
     stillPhoto: "/products/3D/red.jpg",
   },
   {
@@ -54,6 +58,7 @@ export const LIPSTICK_SHADES: LipstickShade[] = [
     description: "Smoked Mauve Plum · Contemporary Botanical Pigment",
     finish: "Velvet Matte",
     bulletTexture: "/products/3D/refined/bullet_orchid.jpg",
+    facetTexture: "/products/3D/refined/facet_orchid.jpg",
     stillPhoto: "/products/3D/other.jpg",
   },
 ];
@@ -61,6 +66,119 @@ export const LIPSTICK_SHADES: LipstickShade[] = [
 interface Lipstick3DViewerProps {
   onSelectShade?: (shade: LipstickShade) => void;
   onOpenPdp?: (shade: LipstickShade) => void;
+}
+
+// Parametric Luxury Sculpted Lipstick Geometry Generator
+// Slices a cylindrical body with a clean planar slant cut while maintaining 100% isometric UVs (zero vertical smearing)
+// Produces two distinct meshes:
+// 1. wallGeo: Cylindrical body with bas-relief carving
+// 2. facetGeo: Smooth velvet matte applicator facet on the cutting plane
+function createSculptedLipstickGeometry(
+  radius = 0.44,
+  yFront = 0.62,
+  yBack = 1.66,
+  radialSegments = 96,
+  heightSegments = 48
+) {
+  const yMid = (yFront + yBack) / 2.0;
+  const dy = (yBack - yFront) / 2.0;
+
+  const wallPositions: number[] = [];
+  const wallNormals: number[] = [];
+  const wallUvs: number[] = [];
+  const wallIndices: number[] = [];
+  const topLoop: THREE.Vector3[] = [];
+
+  for (let j = 0; j <= heightSegments; j++) {
+    const vNorm = j / heightSegments;
+
+    for (let i = 0; i <= radialSegments; i++) {
+      const uNorm = i / radialSegments;
+      const phi = uNorm * Math.PI * 2.0;
+
+      // Planar slant cut height at angle phi:
+      // phi=0 is front (+z, lowest cut), phi=PI is back (-z, highest tip)
+      const yTop = yMid - dy * Math.cos(phi);
+
+      const y = vNorm * yTop;
+      const x = radius * Math.sin(phi);
+      const z = radius * Math.cos(phi);
+
+      wallPositions.push(x, y, z);
+      wallNormals.push(Math.sin(phi), 0, Math.cos(phi));
+
+      // Isometric UV mapping: u wraps 360 around cylinder, v is linear world height y / yBack
+      // Offset u by 0.5 so that front (+z, phi=0) is at u=0.5 (where Nightingale bird is centered)
+      const u = (uNorm + 0.5) % 1.0;
+      const v = y / yBack;
+      wallUvs.push(u, v);
+
+      if (j === heightSegments && i < radialSegments) {
+        topLoop.push(new THREE.Vector3(x, y, z));
+      }
+    }
+  }
+
+  for (let j = 0; j < heightSegments; j++) {
+    for (let i = 0; i < radialSegments; i++) {
+      const row1 = j * (radialSegments + 1);
+      const row2 = (j + 1) * (radialSegments + 1);
+
+      const a = row1 + i;
+      const b = row1 + i + 1;
+      const c = row2 + i + 1;
+      const d = row2 + i;
+
+      wallIndices.push(a, b, d);
+      wallIndices.push(b, c, d);
+    }
+  }
+
+  const wallGeo = new THREE.BufferGeometry();
+  wallGeo.setAttribute("position", new THREE.Float32BufferAttribute(wallPositions, 3));
+  wallGeo.setAttribute("normal", new THREE.Float32BufferAttribute(wallNormals, 3));
+  wallGeo.setAttribute("uv", new THREE.Float32BufferAttribute(wallUvs, 2));
+  wallGeo.setIndex(wallIndices);
+  wallGeo.computeVertexNormals();
+
+  // 2. Slanted Applicator Facet Geometry (Smooth planar/slightly convex teardrop cap)
+  const facetPositions: number[] = [];
+  const facetNormals: number[] = [];
+  const facetUvs: number[] = [];
+  const facetIndices: number[] = [];
+
+  const slope = dy / radius;
+  const planeNormal = new THREE.Vector3(0, 1, slope).normalize();
+
+  const centerPt = new THREE.Vector3(0, yMid + 0.012, 0);
+  facetPositions.push(centerPt.x, centerPt.y, centerPt.z);
+  facetNormals.push(planeNormal.x, planeNormal.y, planeNormal.z);
+  facetUvs.push(0.5, 0.5);
+
+  const loopCount = topLoop.length;
+  for (let i = 0; i < loopCount; i++) {
+    const pt = topLoop[i];
+    facetPositions.push(pt.x, pt.y, pt.z);
+    facetNormals.push(planeNormal.x, planeNormal.y, planeNormal.z);
+
+    const fu = (pt.x / radius) * 0.5 + 0.5;
+    const fv = (pt.z / radius) * 0.5 + 0.5;
+    facetUvs.push(fu, fv);
+  }
+
+  for (let i = 0; i < loopCount; i++) {
+    const next = (i + 1) % loopCount;
+    facetIndices.push(0, i + 1, next + 1);
+  }
+
+  const facetGeo = new THREE.BufferGeometry();
+  facetGeo.setAttribute("position", new THREE.Float32BufferAttribute(facetPositions, 3));
+  facetGeo.setAttribute("normal", new THREE.Float32BufferAttribute(facetNormals, 3));
+  facetGeo.setAttribute("uv", new THREE.Float32BufferAttribute(facetUvs, 2));
+  facetGeo.setIndex(facetIndices);
+  facetGeo.computeVertexNormals();
+
+  return { wallGeo, facetGeo };
 }
 
 export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3DViewerProps) {
@@ -71,10 +189,12 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
 
   // References for live Three.js scene updates
   const bulletMeshRef = useRef<THREE.Mesh | null>(null);
+  const bulletFacetMeshRef = useRef<THREE.Mesh | null>(null);
   const bulletGroupRef = useRef<THREE.Group | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
-  const targetBulletYRef = useRef<number>(1.85);
+  const targetBulletYRef = useRef<number>(1.25);
   const texturesMapRef = useRef<Map<string, THREE.Texture>>(new Map());
+  const facetTexturesMapRef = useRef<Map<string, THREE.Texture>>(new Map());
 
   // Handle shade selection
   const handleShadeChange = (shade: LipstickShade) => {
@@ -88,8 +208,17 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
         mat.map = cachedTex;
         mat.needsUpdate = true;
       }
-      mat.color.setHex(shade.colorHex);
       mat.sheenColor.setHex(shade.colorHex);
+    }
+
+    if (bulletFacetMeshRef.current) {
+      const facetMat = bulletFacetMeshRef.current.material as THREE.MeshPhysicalMaterial;
+      const cachedFacetTex = facetTexturesMapRef.current.get(shade.id);
+      if (cachedFacetTex) {
+        facetMat.map = cachedFacetTex;
+        facetMat.needsUpdate = true;
+      }
+      facetMat.sheenColor.setHex(shade.colorHex);
     }
   };
 
@@ -97,7 +226,7 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
   const toggleTwist = () => {
     const nextState = !isTwistedUp;
     setIsTwistedUp(nextState);
-    targetBulletYRef.current = nextState ? 1.85 : 0.72;
+    targetBulletYRef.current = nextState ? 1.25 : 0.45;
   };
 
   // Generate procedural contact shadow plane texture
@@ -140,7 +269,7 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.38;
+    renderer.toneMappingExposure = 1.08;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.innerHTML = "";
@@ -151,8 +280,8 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
     controlsRef.current = controls;
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 1.0;
+    controls.autoRotate = false; // Hero lands on iconic Nightingale front view
+    controls.autoRotateSpeed = 0.8;
     controls.enableZoom = false; // Prevent hijack of page scroll
     controls.enablePan = false;
     controls.minPolarAngle = Math.PI / 3.4;
@@ -215,35 +344,35 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
 
     scene.environment = pmremGenerator.fromScene(envScene).texture;
 
-    // 4. Multi-Point Luxury Studio Lighting Rig
-    const keyLight = new THREE.DirectionalLight(0xfffaef, 3.2);
+    // 4. Multi-Point Luxury Studio Lighting Rig (Soft, diffuse studio lighting matching camera photos)
+    const keyLight = new THREE.DirectionalLight(0xfffaef, 2.6);
     keyLight.position.set(2.5, 4.5, 5.5);
     keyLight.castShadow = true;
     scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xffecd6, 2.6);
+    const fillLight = new THREE.DirectionalLight(0xffecd6, 2.0);
     fillLight.position.set(-3.5, 3.0, 4.0);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xdfb895, 3.2);
+    const rimLight = new THREE.DirectionalLight(0xdfb895, 2.4);
     rimLight.position.set(-5, 4, -4);
     scene.add(rimLight);
 
-    const topSoftLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    const topSoftLight = new THREE.DirectionalLight(0xffffff, 1.8);
     topSoftLight.position.set(0, 8, 2);
     scene.add(topSoftLight);
 
-    const rubyBounce = new THREE.PointLight(0xa81920, 2.0, 12);
+    const rubyBounce = new THREE.PointLight(0xa81920, 1.6, 12);
     rubyBounce.position.set(0, -1.5, 3.5);
     scene.add(rubyBounce);
 
-    const ambientLight = new THREE.AmbientLight(0xfff2e5, 2.2);
+    const ambientLight = new THREE.AmbientLight(0xfff2e5, 2.0);
     scene.add(ambientLight);
 
     // 5. Texture Loader & Caching
     const textureLoader = new THREE.TextureLoader();
 
-    // Preload all shade textures
+    // Preload all shade textures (Wall cylindrical relief + Facet smooth velvet)
     LIPSTICK_SHADES.forEach((shade) => {
       textureLoader.load(shade.bulletTexture, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
@@ -254,6 +383,18 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
         if (shade.id === activeShade.id && bulletMeshRef.current) {
           (bulletMeshRef.current.material as THREE.MeshPhysicalMaterial).map = tex;
           (bulletMeshRef.current.material as THREE.MeshPhysicalMaterial).needsUpdate = true;
+        }
+      });
+
+      textureLoader.load(shade.facetTexture, (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.wrapS = THREE.ClampToEdgeWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        facetTexturesMapRef.current.set(shade.id, tex);
+
+        if (shade.id === activeShade.id && bulletFacetMeshRef.current) {
+          (bulletFacetMeshRef.current.material as THREE.MeshPhysicalMaterial).map = tex;
+          (bulletFacetMeshRef.current.material as THREE.MeshPhysicalMaterial).needsUpdate = true;
         }
       });
     });
@@ -271,7 +412,7 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
 
     // 6. Master Lipstick Group (Centered vertically at y=0)
     const masterGroup = new THREE.Group();
-    masterGroup.position.set(0, -0.38, 0);
+    masterGroup.position.set(0, -0.52, 0);
     scene.add(masterGroup);
 
     // Contact Ground Shadow Disc
@@ -357,56 +498,57 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
     masterGroup.add(collarRimMesh);
 
     // C. Sculpted Lipstick Bullet with Hand-Carved Imperial Bird & Floral Relief
-    const bulletRadius = 0.44;
-    const bulletHeight = 1.65;
-    const bulletGeo = new THREE.CylinderGeometry(bulletRadius, bulletRadius, bulletHeight, 64, 64);
-    const posAttr = bulletGeo.attributes.position;
+    // Two-part architecture:
+    // Part 1: Cylindrical relief wall (100% isometric mapping, zero vertical smearing)
+    // Part 2: Smooth slanted teardrop applicator facet (pure velvet matte wax)
+    const { wallGeo, facetGeo } = createSculptedLipstickGeometry(0.44, 0.70, 1.70, 96, 48);
 
-    // Mathematical teardrop chisel cut
-    for (let i = 0; i < posAttr.count; i++) {
-      const y = posAttr.getY(i);
-      const z = posAttr.getZ(i);
-      const x = posAttr.getX(i);
-
-      if (y > 0.12) {
-        // Angled chisel slant cut
-        const slantOffset = (z / bulletRadius) * 0.42;
-        posAttr.setY(i, y - slantOffset);
-
-        // Taper upper teardrop tip
-        if (y > 0.42) {
-          const taper = 1.0 - (y - 0.42) * 0.28;
-          posAttr.setX(i, x * taper);
-        }
-      }
-    }
-    bulletGeo.computeVertexNormals();
-
-    const bulletMaterial = new THREE.MeshPhysicalMaterial({
-      color: activeShade.colorHex,
-      roughness: 0.72,
+    const wallMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.82,
       roughnessMap: bulletRoughnessMap,
       metalness: 0.0,
-      sheen: 0.55,
+      sheen: 0.35,
       sheenColor: new THREE.Color(activeShade.colorHex),
-      sheenRoughness: 0.45,
+      sheenRoughness: 0.5,
       clearcoat: 0.0,
       normalMap: bulletNormalMap,
-      normalScale: new THREE.Vector2(0.85, 0.85),
+      normalScale: new THREE.Vector2(0.80, 0.80),
     });
 
     const activeTexture = texturesMapRef.current.get(activeShade.id);
     if (activeTexture) {
-      bulletMaterial.map = activeTexture;
+      wallMaterial.map = activeTexture;
     }
 
-    const bulletMesh = new THREE.Mesh(bulletGeo, bulletMaterial);
-    bulletMesh.castShadow = true;
-    bulletMeshRef.current = bulletMesh;
+    const wallMesh = new THREE.Mesh(wallGeo, wallMaterial);
+    wallMesh.castShadow = true;
+    bulletMeshRef.current = wallMesh;
+
+    // Smooth Velvet Matte Applicator Facet
+    const facetMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.86,
+      metalness: 0.0,
+      sheen: 0.40,
+      sheenColor: new THREE.Color(activeShade.colorHex),
+      sheenRoughness: 0.5,
+      clearcoat: 0.0,
+    });
+
+    const activeFacetTexture = facetTexturesMapRef.current.get(activeShade.id);
+    if (activeFacetTexture) {
+      facetMaterial.map = activeFacetTexture;
+    }
+
+    const facetMesh = new THREE.Mesh(facetGeo, facetMaterial);
+    facetMesh.castShadow = true;
+    bulletFacetMeshRef.current = facetMesh;
 
     const bulletGroup = new THREE.Group();
     bulletGroup.position.y = targetBulletYRef.current;
-    bulletGroup.add(bulletMesh);
+    bulletGroup.add(wallMesh);
+    bulletGroup.add(facetMesh);
     bulletGroupRef.current = bulletGroup;
     masterGroup.add(bulletGroup);
 

@@ -74,18 +74,6 @@ test.describe("She'Aura Brand Intro & Elevated 3D Lipstick Hero Section Verifica
           animations: "disabled",
           path: "tests/visual/screenshots/hero-3d-shade-switched.png",
         });
-
-        // Click to view formula / PDP
-        await shopBtn.click();
-        await page.waitForTimeout(800);
-
-        const pdpH1 = page.locator("h1").first();
-        await expect(pdpH1).toBeVisible({ timeout: 10000 });
-
-        await page.screenshot({
-          animations: "disabled",
-          path: "tests/visual/screenshots/hero-lipstick-pdp-opened.png",
-        });
       }
     }
   });

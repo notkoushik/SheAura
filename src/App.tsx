@@ -2238,7 +2238,8 @@ export default function App() {
 
   const featuredProduct =
     catalog.find((p) => p.slug === "scarlet-rose-lipstick") ??
-    catalog.find((p) => /scarlet rose/i.test(p.name));
+    catalog.find((p) => /scarlet rose/i.test(p.name)) ??
+    catalog[0];
 
   return (
     <>
