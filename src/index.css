@@ -1037,81 +1037,66 @@ img { display: block; width: 100%; }
 }
 
 /* Calligraphic ink signature flourish */
-.brand-intro-signature {
-  width: min(260px, 60vw);
-  height: 60px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 6px;
+/* Authentic She'Aura Logo Wordmark Staggered Slice Unmask */
+.brand-intro-logo-container {
+  position: relative;
+  width: min(520px, 86vw);
+  aspect-ratio: 359.52 / 87.59;
+  margin: 0 auto;
 }
 
-.brand-signature-svg {
+.brand-logo-slice-mask {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.brand-logo-slice-glyph {
+  position: absolute;
+  inset: 0;
+  transform: translateY(115%);
+  opacity: 0;
+  animation: brandCharSlideUp 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.brand-logo-slice-svg {
   width: 100%;
   height: 100%;
-  overflow: visible;
+  display: block;
 }
 
-.signature-stroke {
-  stroke-dasharray: 450;
-  stroke-dashoffset: 450;
-  animation: drawInk 0.85s cubic-bezier(0.35, 0, 0.25, 1) forwards;
+.brand-intro-tagline-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: brandTaglineFadeIn 0.85s 0.76s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.signature-accent-stroke {
-  stroke-dasharray: 180;
-  stroke-dashoffset: 180;
-  animation: drawAccent 0.6s 0.3s cubic-bezier(0.35, 0, 0.25, 1) forwards;
-}
-
-@keyframes drawInk {
-  to {
-    stroke-dashoffset: 0;
+@keyframes brandTaglineFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+    filter: blur(1.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
-@keyframes drawAccent {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* Sculpted Wordmark with Staggered Character Baseline Unmask */
-.brand-intro-wordmark-wrap {
-  position: relative;
-  overflow: hidden;
-  padding: 6px 0;
-}
-
-.brand-intro-wordmark {
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  font: 400 clamp(44px, 8.5vw, 92px) / 0.88 "Cormorant Garamond", serif;
-  letter-spacing: 0.14em;
-  color: #1b100c;
-}
-
-.char-mask {
-  display: inline-block;
-  overflow: hidden;
-  padding: 0 2px;
-}
-
-.char-glyph {
-  display: inline-block;
-  transform: translateY(115%);
-  animation: charReveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes charReveal {
-  from {
+@keyframes brandCharSlideUp {
+  0% {
     transform: translateY(115%);
     opacity: 0;
-    filter: blur(4px);
+    filter: blur(2px);
   }
-  to {
+  60% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
     transform: translateY(0);
     opacity: 1;
     filter: blur(0);
@@ -1162,16 +1147,12 @@ img { display: block; width: 100%; }
 }
 
 @media (max-width: 600px) {
-  .brand-intro-signature {
-    width: 200px;
-    height: 48px;
-  }
-  .brand-intro-wordmark {
-    font-size: 40px;
-    letter-spacing: 0.1em;
+  .brand-intro-logo-container {
+    width: 88vw;
   }
   .brand-intro-hairline {
     width: 48px;
+    margin: 18px auto 12px;
   }
   .brand-intro-tagline {
     font-size: 7.5px;
@@ -1180,13 +1161,282 @@ img { display: block; width: 100%; }
   }
 }
 
-/* Classic Hero Section */
+/* Classic Hero Section & Elevated Lipstick Presentation */
 .hero {
   position: relative;
-  height: 850px;
+  min-height: 860px;
   overflow: hidden;
-  background: #5d2b1e;
+  background: #1b100c;
   color: white;
+}
+
+.hero-plain-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 68% 48%, rgba(58, 28, 18, 0.52) 0%, rgba(27, 16, 12, 0.96) 65%, #180d08 100%);
+  pointer-events: none;
+}
+
+.hero-split-stage {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 48px;
+  align-items: center;
+  min-height: calc(860px - 110px);
+  padding: 40px 0 60px;
+  position: relative;
+  z-index: 2;
+}
+
+.hero-copy-column {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  z-index: 3;
+}
+
+.hero-eyebrow-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(223, 184, 149, 0.12);
+  border: 1px solid rgba(223, 184, 149, 0.28);
+  color: #dfb895;
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.hero-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a81920;
+}
+
+.hero-headline {
+  margin: 0 0 20px;
+  font: 500 clamp(44px, 4.8vw, 76px) / 0.88 "Cormorant Garamond", serif;
+  letter-spacing: -0.035em;
+  color: #ffffff;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+
+.hero-specs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.hero-spec-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.chip-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.hero-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.hero-primary-shop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 28px;
+  border-radius: 999px;
+  background: #dfb895;
+  color: #1b100c;
+  border: none;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.hero-primary-shop-btn:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(223, 184, 149, 0.3);
+}
+
+.hero-primary-shop-btn .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.hero-secondary-explore-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 22px;
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all 0.25s;
+}
+
+.hero-secondary-explore-btn:hover {
+  border-color: #dfb895;
+  color: #dfb895;
+  background: rgba(223, 184, 149, 0.08);
+}
+
+.hero-lipstick-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+}
+
+.lipstick-halo-glow {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(168, 25, 32, 0.22) 0%, rgba(223, 184, 149, 0.08) 50%, transparent 75%);
+  pointer-events: none;
+  filter: blur(40px);
+}
+
+.lipstick-pedestal-card {
+  position: relative;
+  width: min(440px, 94%);
+  aspect-ratio: 1 / 1.25;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 35px 90px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(223, 184, 149, 0.22);
+  cursor: pointer;
+  background: #190c07;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.5s;
+}
+
+.lipstick-pedestal-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 45px 110px rgba(168, 25, 32, 0.35), 0 0 0 1.5px rgba(223, 184, 149, 0.5);
+}
+
+.hero-elevated-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lipstick-pedestal-card:hover .hero-elevated-photo {
+  transform: scale(1.04);
+}
+
+.hero-floating-shimmer-tag {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  background: rgba(20, 9, 6, 0.88);
+  backdrop-filter: blur(14px);
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(223, 184, 149, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.shimmer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a81920;
+  box-shadow: 0 0 10px #a81920;
+  flex-shrink: 0;
+}
+
+.shimmer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.shimmer-text strong {
+  color: #ffffff;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.shimmer-text span {
+  color: rgba(223, 184, 149, 0.85);
+  font-size: 7.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    min-height: auto;
+    overflow: visible;
+    padding-bottom: 50px;
+  }
+  .hero-split-stage {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-top: 14px;
+    padding-bottom: 40px;
+    min-height: auto;
+  }
+  .hero-lipstick-stage {
+    order: -1;
+  }
+  .lipstick-pedestal-card {
+    max-width: 270px;
+    aspect-ratio: 1 / 1.12;
+  }
+  .hero-copy-column {
+    align-items: center;
+    text-align: center;
+  }
+  .hero-specs-row {
+    justify-content: center;
+  }
+  .hero-actions-group {
+    justify-content: center;
+    width: 100%;
+  }
 }
 
 .hero-bg {
@@ -1276,8 +1526,8 @@ img { display: block; width: 100%; }
 .hero-content {
   position: relative;
   z-index: 2;
-  padding-top: clamp(80px, 11vh, 115px);
-  animation: heroCopyReveal 1.15s 2.05s cubic-bezier(.2,.82,.22,1) both;
+  padding-top: clamp(40px, 6vh, 60px);
+  animation: heroCopyReveal 0.65s 0.15s cubic-bezier(.2,.82,.22,1) both;
 }
 .hero-content h1 {
   margin: 0 0 20px;
@@ -1298,7 +1548,7 @@ img { display: block; width: 100%; }
 .arrow-link.light { border-color: rgba(255,255,255,.7); }
 .arrow-link .icon { width: 16px; }
 .hero-content .arrow-link { padding: 15px 21px; border: 0; background: var(--paper); color: var(--ink); }
-.hero .nav { animation: navReveal 1.05s 1.9s cubic-bezier(.2,.82,.22,1) both; }
+.hero .nav { animation: navReveal 0.55s 0.1s cubic-bezier(.2,.82,.22,1) both; }
 
 @keyframes heroImageReveal {
   from { opacity: 0; transform: scale(1.06); }

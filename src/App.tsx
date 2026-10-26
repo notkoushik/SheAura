@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from "react";
 import BrandIntro from "./BrandIntro";
-import ScrollHero from "./ScrollHero";
 import CartDrawer from "./CartDrawer";
 import CartView from "./CartView";
 import WishlistView from "./WishlistView";
@@ -2243,142 +2242,219 @@ export default function App() {
     <>
       {showIntro && <BrandIntro onComplete={() => setShowIntro(false)} />}
       <main className="storefront-main">
-      <ScrollHero
-        featured={featuredProduct}
-        onShopFeatured={() => {
-          if (!featuredProduct) return;
-          setSelectedProduct(featuredProduct);
-          // Instant: the page is several screens deep here, and html's smooth
-          // scroll-behavior would be cut short when the product view mounts.
-          window.scrollTo({ top: 0, behavior: "instant" });
-        }}
-        header={
-          <header className="nav shell">
-             <a className="brand brand-animated" href="#" aria-label="SHE'AURA">
-               <SheAuraLogo className="brand-logo-svg" height={30} />
-             </a>
-            <nav className={menuOpen ? "nav-links open" : "nav-links"}>
-              <div className="mobile-nav-hub">
-                <div
-                  className="mobile-hub-user-card"
+      <section className="hero hero-elevated-lipstick">
+        <div className="hero-plain-backdrop" />
+
+        <header className="nav shell">
+           <a className="brand brand-animated" href="#" aria-label="SHE'AURA">
+             <SheAuraLogo className="brand-logo-svg" height={30} />
+           </a>
+          <nav className={menuOpen ? "nav-links open" : "nav-links"}>
+            <div className="mobile-nav-hub">
+              <div
+                className="mobile-hub-user-card"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigateTo("account");
+                }}
+              >
+                <div className="mobile-hub-avatar">
+                  {currentUser ? (
+                    <span className="mobile-hub-initials">
+                      {currentUser.fullName.slice(0, 2).toUpperCase()}
+                    </span>
+                  ) : (
+                    <Icon name="user" />
+                  )}
+                </div>
+                <div className="mobile-hub-info">
+                  <span className="mobile-hub-name">
+                    {currentUser ? currentUser.fullName : "Maison Member"}
+                  </span>
+                  <span className="mobile-hub-status">
+                    {currentUser ? "Aura Beauty Passport Active" : "Sign In / Join Maison"}
+                  </span>
+                </div>
+                <Icon name="arrow" />
+              </div>
+
+              <div className="mobile-hub-actions-row">
+                <button
+                  type="button"
+                  className="mobile-hub-btn mobile-hub-cart-btn"
                   onClick={() => {
                     setMenuOpen(false);
-                    navigateTo("account");
+                    setIsCartDrawerOpen(true);
                   }}
                 >
-                  <div className="mobile-hub-avatar">
-                    {currentUser ? (
-                      <span className="mobile-hub-initials">
-                        {currentUser.fullName.slice(0, 2).toUpperCase()}
-                      </span>
-                    ) : (
-                      <Icon name="user" />
-                    )}
+                  <div className="mobile-hub-btn-icon">
+                    <Icon name="bag" />
+                    {cartCount > 0 && <span className="mobile-hub-badge">{cartCount}</span>}
                   </div>
-                  <div className="mobile-hub-info">
-                    <span className="mobile-hub-name">
-                      {currentUser ? currentUser.fullName : "Maison Member"}
-                    </span>
-                    <span className="mobile-hub-status">
-                      {currentUser ? "Aura Beauty Passport Active" : "Sign In / Join Maison"}
-                    </span>
+                  <div className="mobile-hub-btn-label">
+                    <strong>Haute Bag</strong>
+                    <span>{cartCount} {cartCount === 1 ? "Piece" : "Pieces"}</span>
                   </div>
-                  <Icon name="arrow" />
-                </div>
+                </button>
 
-                <div className="mobile-hub-actions-row">
-                  <button
-                    type="button"
-                    className="mobile-hub-btn mobile-hub-cart-btn"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setIsCartDrawerOpen(true);
-                    }}
-                  >
-                    <div className="mobile-hub-btn-icon">
-                      <Icon name="bag" />
-                      {cartCount > 0 && <span className="mobile-hub-badge">{cartCount}</span>}
-                    </div>
-                    <div className="mobile-hub-btn-label">
-                      <strong>Haute Bag</strong>
-                      <span>{cartCount} {cartCount === 1 ? "Piece" : "Pieces"}</span>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="mobile-hub-btn mobile-hub-wishlist-btn"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      navigateTo("wishlist");
-                    }}
-                  >
-                    <div className="mobile-hub-btn-icon">
-                      <Icon name="heart" />
-                      {wishlist.length > 0 && <span className="mobile-hub-badge">{wishlist.length}</span>}
-                    </div>
-                    <div className="mobile-hub-btn-label">
-                      <strong>Wishlist</strong>
-                      <span>{wishlist.length} Saved</span>
-                    </div>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="mobile-hub-btn mobile-hub-wishlist-btn"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigateTo("wishlist");
+                  }}
+                >
+                  <div className="mobile-hub-btn-icon">
+                    <Icon name="heart" />
+                    {wishlist.length > 0 && <span className="mobile-hub-badge">{wishlist.length}</span>}
+                  </div>
+                  <div className="mobile-hub-btn-label">
+                    <strong>Wishlist</strong>
+                    <span>{wishlist.length} Saved</span>
+                  </div>
+                </button>
               </div>
-
-              <div className="mobile-nav-categories">
-                {["Shop", "Collections", "Skincare", "Makeup", "About", "Journal"].map((item) => (
-                  <a
-                    key={item}
-                    href={`#${item.toLowerCase()}`}
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <span>{item}</span>
-                    <Icon name="arrow" />
-                  </a>
-                ))}
-              </div>
-            </nav>
-            <div className="nav-actions">
-              <button aria-label="Search"><Icon name="search" /></button>
-              <button
-                type="button"
-                aria-label="Wishlist Sanctuary"
-                onClick={() => navigateTo("wishlist")}
-                className="wishlist-nav-btn"
-                title={`Wishlist Sanctuary (${wishlist.length})`}
-              >
-                <Icon name="heart" />
-                {wishlist.length > 0 && <span className="wishlist-badge">{wishlist.length}</span>}
-              </button>
-              <button
-                aria-label="Account"
-                onClick={() => navigateTo("account")}
-                className={`account-nav-btn ${currentUser ? "is-logged" : ""}`}
-                title={currentUser ? `Maison Member: ${currentUser.fullName}` : "Member Account / Sign In"}
-              >
-                {currentUser ? (
-                  <span className="account-nav-initials">
-                    {currentUser.fullName.slice(0, 2).toUpperCase()}
-                  </span>
-                ) : (
-                  <Icon name="user" />
-                )}
-              </button>
-              <button
-                type="button"
-                aria-label="Shopping bag"
-                className="bag"
-                onClick={() => setIsCartDrawerOpen(true)}
-                title={`Shopping Bag (${cartCount})`}
-              >
-                <Icon name="bag" />
-                <span>{cartCount}</span>
-              </button>
-              <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu"><i /><i /></button>
             </div>
-          </header>
-        }
-      />
+
+            <div className="mobile-nav-categories">
+              {["Shop", "Collections", "Skincare", "Makeup", "About", "Journal"].map((item) => (
+                <a
+                  key={item}
+                  href={`#${item.toLowerCase()}`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span>{item}</span>
+                  <Icon name="arrow" />
+                </a>
+              ))}
+            </div>
+          </nav>
+          <div className="nav-actions">
+            <button aria-label="Search"><Icon name="search" /></button>
+            <button
+              type="button"
+              aria-label="Wishlist Sanctuary"
+              onClick={() => navigateTo("wishlist")}
+              className="wishlist-nav-btn"
+              title={`Wishlist Sanctuary (${wishlist.length})`}
+            >
+              <Icon name="heart" />
+              {wishlist.length > 0 && <span className="wishlist-badge">{wishlist.length}</span>}
+            </button>
+            <button
+              aria-label="Account"
+              onClick={() => navigateTo("account")}
+              className={`account-nav-btn ${currentUser ? "is-logged" : ""}`}
+              title={currentUser ? `Maison Member: ${currentUser.fullName}` : "Member Account / Sign In"}
+            >
+              {currentUser ? (
+                <span className="account-nav-initials">
+                  {currentUser.fullName.slice(0, 2).toUpperCase()}
+                </span>
+              ) : (
+                <Icon name="user" />
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label="Shopping bag"
+              className="bag"
+              onClick={() => setIsCartDrawerOpen(true)}
+              title={`Shopping Bag (${cartCount})`}
+            >
+              <Icon name="bag" />
+              <span>{cartCount}</span>
+            </button>
+            <button className="menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu"><i /><i /></button>
+          </div>
+        </header>
+
+        {/* Elevated Lipstick Showcase Stage */}
+        <div className="hero-content shell hero-split-stage">
+          {/* Left Column: Editorial Copy & Purchase Action */}
+          <div className="hero-copy-column">
+            <div className="hero-eyebrow-badge">
+              <span className="hero-badge-dot" />
+              <span>Maison Icon · Bare Lip Sensorial Glide</span>
+            </div>
+            <h1 className="hero-headline">
+              A Ritual<br />Beyond<br />Beauty.
+            </h1>
+            <p className="hero-copy">
+              Sculpted botanical colour with 16h sensory comfort. Enriched with cold-pressed Damask Rose wax and micronized mineral pigments for an unmistakable signature glide.
+            </p>
+
+            <div className="hero-specs-row">
+              <div className="hero-spec-chip">
+                <span className="chip-swatch" style={{ background: "#a81920" }} />
+                <span>Scarlet Rose</span>
+              </div>
+              <div className="hero-spec-chip">
+                <span>Hydrating Matte</span>
+              </div>
+              <div className="hero-spec-chip">
+                <span>Min 8H Wear</span>
+              </div>
+              <div className="hero-spec-chip">
+                <span>100% Vegan</span>
+              </div>
+            </div>
+
+            <div className="hero-actions-group">
+              <button
+                type="button"
+                className="hero-primary-shop-btn"
+                onClick={() => {
+                  if (featuredProduct) {
+                    setSelectedProduct(featuredProduct);
+                    window.scrollTo({ top: 0, behavior: "instant" });
+                  }
+                }}
+              >
+                <span>Shop Scarlet Rose · ₹1,099.00</span>
+                <Icon name="arrow" />
+              </button>
+              <a href="#collections" className="hero-secondary-explore-btn">
+                <span>Explore Collections</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Right Column: Hero Elevated Lipstick Showcase */}
+          <div className="hero-lipstick-stage">
+            <div className="lipstick-halo-glow" />
+            <div
+              className="lipstick-pedestal-card"
+              onClick={() => {
+                if (featuredProduct) {
+                  setSelectedProduct(featuredProduct);
+                  window.scrollTo({ top: 0, behavior: "instant" });
+                }
+              }}
+              title="Click to view Scarlet Rose Lipstick"
+            >
+              <img
+                src={resolveAsset("/products/Minimal_design/Scarlet Rose Lipstick_still.png")}
+                alt="She'Aura Scarlet Rose Lipstick elevated on travertine pedestal"
+                className="hero-elevated-photo"
+              />
+              <div className="hero-floating-shimmer-tag">
+                <span className="shimmer-dot" />
+                <div className="shimmer-text">
+                  <strong>Scarlet Rose Lipstick</strong>
+                  <span>Hand-Embossed Floral Bullet · Gold Brass Casing</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="scroll-note">
+          <span>Scroll to explore</span>
+          <span className="scroll-bar-indicator" />
+        </div>
+      </section>
 
       <section className="categories" id="collections">
         {[
