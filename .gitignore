@@ -26,3 +26,6 @@ playwright-report/
 
 supabase/.temp/
 .vercel
+
+.vercel
+.env*
