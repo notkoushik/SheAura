@@ -237,6 +237,34 @@ const ASSET_LIBRARY_PICKER = [
   { label: "Complexion Still", path: "/products/Minimal_design/Complexion_foundation_still.jpg", category: "Foundation" },
 ];
 
+// She'Aura Storefront Luxury Theme & Coloring Tokens
+const THEME = {
+  paper: "#f8f0e5",                    // Signature warm parchment background
+  cream: "#f4ece1",                    // Sidebar, table headers & modal accents
+  creamLight: "#fbf8f5",               // Row hover & light card fills
+  cardBg: "#ffffff",                   // Pure white luxury card surfaces
+  ink: "#21130f",                      // Deep luxury espresso ink
+  inkHover: "#3b231c",                 // Espresso hover
+  inkMuted: "#765d50",                 // Warm secondary typography
+  inkSubtle: "#8c766a",                // Muted metadata typography
+  inkBorder: "rgba(42, 26, 20, 0.12)", // Delicate warm borders
+  inkBorderSubtle: "rgba(42, 26, 20, 0.07)",
+  gold: "#a36a3b",                     // Warm brand gold
+  goldHover: "#8b562a",
+  goldLight: "#dfb895",                // Soft sand accent
+  goldBg: "rgba(163, 106, 59, 0.12)",
+  greenBg: "#dbe8d7",                  // Live / Delivered / Healthy stock
+  greenText: "#2d5e35",
+  amberBg: "#faedd9",                  // Low stock / Dispatched
+  amberText: "#8a5712",
+  blueBg: "#e8eff7",                   // Processing
+  blueText: "#1d4677",
+  redBg: "#fae8e8",                    // Failed / Critical / Logout
+  redText: "#a34d45",
+  fontSerif: "'Cormorant Garamond', serif",
+  fontSans: "'Montserrat', sans-serif",
+};
+
 export default function AdminView({ onBack }: AdminViewProps) {
   const [adminSession, setAdminSessionState] = useState(() => getAdminSession());
   const [activeTab, setActiveTab] = useState<"overview" | "creations" | "inventory" | "orders" | "customers" | "settings">("overview");
@@ -1156,25 +1184,25 @@ export default function AdminView({ onBack }: AdminViewProps) {
         className="admin-console-root"
         style={{
           minHeight: "100vh",
-          background: "#0c0c0f",
-          color: "#f8fafc",
+          background: THEME.paper,
+          color: THEME.ink,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: "24px",
-          fontFamily: "'Montserrat', sans-serif",
+          fontFamily: THEME.fontSans,
         }}
       >
         <div
           style={{
             maxWidth: "460px",
             width: "100%",
-            background: "#141418",
-            border: "1px solid rgba(223, 184, 149, 0.2)",
+            background: THEME.cardBg,
+            border: `1px solid ${THEME.inkBorder}`,
             borderRadius: "16px",
             padding: "40px 32px",
             textAlign: "center",
-            boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
+            boxShadow: "0 20px 50px rgba(33, 19, 15, 0.08)",
           }}
         >
           <div
@@ -1182,20 +1210,20 @@ export default function AdminView({ onBack }: AdminViewProps) {
               width: "60px",
               height: "60px",
               borderRadius: "50%",
-              background: "rgba(193, 136, 71, 0.15)",
-              border: "1px solid rgba(193, 136, 71, 0.4)",
+              background: THEME.goldBg,
+              border: "1px solid rgba(163, 106, 59, 0.3)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               marginBottom: "20px",
             }}
           >
-            <ShieldCheck size={32} style={{ color: "#c18847" }} />
+            <ShieldCheck size={32} style={{ color: THEME.gold }} />
           </div>
-          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "26px", margin: "0 0 8px", color: "#ffffff" }}>
+          <h2 style={{ fontFamily: THEME.fontSerif, fontSize: "28px", margin: "0 0 8px", color: THEME.ink }}>
             Restricted Studio Console
           </h2>
-          <p style={{ fontSize: "12px", color: "#94a3b8", lineHeight: 1.6, marginBottom: "28px" }}>
+          <p style={{ fontSize: "12px", color: THEME.inkMuted, lineHeight: 1.6, marginBottom: "28px" }}>
             Administrative privileges are strictly isolated. Please authenticate via the dedicated gateway at <b>sheaura/login</b>.
           </p>
           <button
@@ -1205,17 +1233,17 @@ export default function AdminView({ onBack }: AdminViewProps) {
             }}
             style={{
               width: "100%",
-              background: "linear-gradient(135deg, #c18847 0%, #9a652a 100%)",
+              background: THEME.ink,
               color: "#ffffff",
               border: "none",
-              borderRadius: "10px",
+              borderRadius: "8px",
               padding: "14px",
               fontSize: "12px",
               fontWeight: 700,
               letterSpacing: "0.1em",
               textTransform: "uppercase",
               cursor: "pointer",
-              boxShadow: "0 6px 20px rgba(193, 136, 71, 0.3)",
+              boxShadow: "0 4px 14px rgba(33, 19, 15, 0.2)",
             }}
           >
             Authenticate via /sheaura/login
@@ -1230,9 +1258,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
       className="admin-console-root"
       style={{
         minHeight: "100vh",
-        background: "#0c0c0f",
-        color: "#f8fafc",
-        fontFamily: "'Montserrat', sans-serif",
+        background: THEME.paper,
+        color: THEME.ink,
+        fontFamily: THEME.fontSans,
         display: "flex",
         flexDirection: "column",
       }}
@@ -1245,12 +1273,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
             top: 20,
             right: 24,
             zIndex: 9999,
-            background: "#181820",
-            border: "1px solid rgba(193, 136, 71, 0.4)",
-            color: "#ffffff",
+            background: THEME.cardBg,
+            border: `1px solid ${THEME.inkBorder}`,
+            color: THEME.ink,
             padding: "12px 20px",
             borderRadius: "10px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            boxShadow: "0 10px 30px rgba(33, 19, 15, 0.12)",
             display: "flex",
             alignItems: "center",
             gap: "10px",
@@ -1258,16 +1286,17 @@ export default function AdminView({ onBack }: AdminViewProps) {
             letterSpacing: "0.03em",
           }}
         >
-          <CheckCircle2 size={16} style={{ color: "#c18847" }} /> {actionNotice}
+          <CheckCircle2 size={16} style={{ color: THEME.gold }} /> {actionNotice}
         </div>
       )}
 
-      {/* ================= TOP BAR (MATCHING SCREENSHOT 2) ================= */}
+      {/* ================= TOP BAR (MATCHING STOREFRONT LUXURY AESTHETIC) ================= */}
       <header
         style={{
           height: "64px",
-          background: "#111116",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          background: "rgba(248, 240, 229, 0.96)",
+          backdropFilter: "blur(12px)",
+          borderBottom: `1px solid ${THEME.inkBorder}`,
           padding: "0 28px",
           display: "flex",
           alignItems: "center",
@@ -1280,10 +1309,10 @@ export default function AdminView({ onBack }: AdminViewProps) {
         {/* Left: Brand + Status Pill */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-            <span style={{ fontSize: "16px", fontWeight: 800, letterSpacing: "0.15em", color: "#f8fafc" }}>
+            <span style={{ fontSize: "16px", fontWeight: 800, letterSpacing: "0.15em", color: THEME.ink }}>
               SHE'AURA
             </span>
-            <span style={{ fontSize: "11px", letterSpacing: "0.2em", color: "#c18847", fontWeight: 600 }}>
+            <span style={{ fontSize: "11px", letterSpacing: "0.2em", color: THEME.gold, fontWeight: 700 }}>
               ATELIER
             </span>
           </div>
@@ -1296,21 +1325,21 @@ export default function AdminView({ onBack }: AdminViewProps) {
               fontSize: "10px",
               fontWeight: 700,
               letterSpacing: "0.08em",
-              color: "#10b981",
-              background: "rgba(16, 185, 129, 0.12)",
-              border: "1px solid rgba(16, 185, 129, 0.25)",
+              color: THEME.greenText,
+              background: THEME.greenBg,
+              border: "1px solid rgba(45, 94, 53, 0.25)",
               padding: "3px 10px",
               borderRadius: "999px",
             }}
           >
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: THEME.greenText }} />
             DATABASE LIVE
           </div>
         </div>
 
         {/* Center: Global Search Bar */}
         <div style={{ position: "relative", width: "420px", maxWidth: "100%" }}>
-          <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+          <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: THEME.inkSubtle }} />
           <input
             type="text"
             placeholder="Search clients, orders, creations, SKUs..."
@@ -1320,9 +1349,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
               width: "100%",
               padding: "9px 14px 9px 38px",
               borderRadius: "8px",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              background: "#181820",
-              color: "#f8fafc",
+              border: `1px solid ${THEME.inkBorder}`,
+              background: THEME.cardBg,
+              color: THEME.ink,
               fontSize: "12px",
               outline: "none",
               boxSizing: "border-box",
@@ -1338,15 +1367,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              background: THEME.cardBg,
+              border: `1px solid ${THEME.inkBorder}`,
               borderRadius: "6px",
               padding: "7px 14px",
               cursor: "pointer",
               fontSize: "11px",
               fontWeight: 600,
               letterSpacing: "0.05em",
-              color: "#e2e8f0",
+              color: THEME.ink,
             }}
           >
             <ExternalLink size={13} /> VIEW WEBSITE
@@ -1358,7 +1387,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 width: "32px",
                 height: "32px",
                 borderRadius: "50%",
-                background: "linear-gradient(135deg, #c18847 0%, #765d50 100%)",
+                background: "linear-gradient(135deg, #21130f 0%, #765d50 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1370,17 +1399,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
               SD
             </div>
             <div style={{ textAlign: "left", lineHeight: 1.2 }}>
-              <div style={{ fontSize: "11px", fontWeight: 700, color: "#f8fafc" }}>Studio Director</div>
-              <div style={{ fontSize: "9.5px", color: "#64748b" }}>STUDIO DIRECTOR</div>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: THEME.ink }}>Studio Director</div>
+              <div style={{ fontSize: "9.5px", color: THEME.inkMuted }}>STUDIO DIRECTOR</div>
             </div>
           </div>
 
           <button
             onClick={handleLockConsole}
+            title="Lock Studio & Sign Out"
             style={{
-              background: "rgba(239, 68, 68, 0.08)",
-              border: "1px solid rgba(239, 68, 68, 0.2)",
-              color: "#ef4444",
+              background: THEME.redBg,
+              border: "1px solid rgba(163, 77, 69, 0.25)",
+              color: THEME.redText,
               borderRadius: "6px",
               padding: "7px 14px",
               fontSize: "11px",
@@ -1402,8 +1432,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
         <aside
           style={{
             width: "230px",
-            background: "#111116",
-            borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+            background: THEME.cream,
+            borderRight: `1px solid ${THEME.inkBorder}`,
             padding: "20px 14px",
             display: "flex",
             flexDirection: "column",
@@ -1433,9 +1463,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     width: "100%",
                     padding: "10px 14px",
                     borderRadius: "8px",
-                    border: isActive ? "1px solid rgba(193, 136, 71, 0.35)" : "1px solid transparent",
-                    background: isActive ? "rgba(193, 136, 71, 0.1)" : "transparent",
-                    color: isActive ? "#ffffff" : "#94a3b8",
+                    border: isActive ? `1px solid ${THEME.ink}` : "1px solid transparent",
+                    background: isActive ? THEME.ink : "transparent",
+                    color: isActive ? "#ffffff" : THEME.inkMuted,
                     fontSize: "12.5px",
                     fontWeight: isActive ? 600 : 500,
                     cursor: "pointer",
@@ -1443,7 +1473,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     transition: "all 0.15s ease",
                   }}
                 >
-                  <Icon size={16} style={{ color: isActive ? "#c18847" : "#64748b" }} />
+                  <Icon size={16} style={{ color: isActive ? THEME.goldLight : THEME.inkSubtle }} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -1453,37 +1483,38 @@ export default function AdminView({ onBack }: AdminViewProps) {
           {/* Mini Brand Banner Card at Bottom */}
           <div
             style={{
-              background: "#16161d",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              background: THEME.cardBg,
+              border: `1px solid ${THEME.inkBorder}`,
               borderRadius: "10px",
               padding: "12px",
               textAlign: "left",
+              boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)",
             }}
           >
-            <div style={{ fontSize: "10px", fontWeight: 700, color: "#c18847", letterSpacing: "0.1em" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.1em" }}>
               SHE'AURA ATELIER
             </div>
-            <div style={{ fontSize: "9px", color: "#64748b", marginTop: "2px" }}>
+            <div style={{ fontSize: "9px", color: THEME.inkSubtle, marginTop: "2px" }}>
               COUTURE BEAUTY · ART MEETS FORMULATION
             </div>
           </div>
         </aside>
 
         {/* Content Body */}
-        <main style={{ flex: 1, padding: "28px 36px", overflowY: "auto", background: "#0c0c0f" }}>
-          {/* ================= TAB 1: STUDIO OVERVIEW (SCREENSHOT 2 & 3) ================= */}
+        <main style={{ flex: 1, padding: "28px 36px", overflowY: "auto", background: THEME.paper }}>
+          {/* ================= TAB 1: STUDIO OVERVIEW ================= */}
           {activeTab === "overview" && (
             <div>
               {/* Header section with Date picker and + Add Creation */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
                 <div>
-                  <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
                     STUDIO DIRECTOR CONSOLE
                   </div>
-                  <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff", letterSpacing: "-0.01em" }}>
+                  <h1 style={{ fontFamily: THEME.fontSerif, fontSize: "32px", fontWeight: 600, margin: "4px 0 0", color: THEME.ink }}>
                     STUDIO OVERVIEW
                   </h1>
-                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: THEME.inkMuted }}>
                     Real-time insights into your creations, orders, inventory and customers.
                   </p>
                 </div>
@@ -1491,26 +1522,26 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <div
                     style={{
-                      background: "#16161c",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      background: THEME.cardBg,
+                      border: `1px solid ${THEME.inkBorder}`,
                       borderRadius: "6px",
                       padding: "8px 14px",
                       fontSize: "11.5px",
-                      color: "#e2e8f0",
+                      color: THEME.ink,
                       display: "flex",
                       alignItems: "center",
                       gap: "6px",
                     }}
                   >
-                    <Calendar size={13} style={{ color: "#c18847" }} /> 22 Oct 2026 – 28 Oct 2026 ▾
+                    <Calendar size={13} style={{ color: THEME.gold }} /> 22 Oct 2026 – 28 Oct 2026 ▾
                   </div>
 
                   <button
                     onClick={handleCreateDynamicTestOrder}
                     style={{
-                      background: "rgba(16, 185, 129, 0.12)",
-                      border: "1px solid rgba(16, 185, 129, 0.3)",
-                      color: "#10b981",
+                      background: THEME.greenBg,
+                      border: "1px solid rgba(45, 94, 53, 0.3)",
+                      color: THEME.greenText,
                       borderRadius: "6px",
                       padding: "8px 14px",
                       fontSize: "11.5px",
@@ -1528,7 +1559,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                   <button
                     onClick={() => setIsAddModalOpen(true)}
                     style={{
-                      background: "linear-gradient(135deg, #c18847 0%, #a86b2b 100%)",
+                      background: THEME.ink,
                       color: "#ffffff",
                       border: "none",
                       borderRadius: "6px",
@@ -1539,7 +1570,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                       display: "flex",
                       alignItems: "center",
                       gap: "6px",
-                      boxShadow: "0 4px 14px rgba(193, 136, 71, 0.25)",
+                      boxShadow: "0 4px 14px rgba(33, 19, 15, 0.18)",
                     }}
                   >
                     <Plus size={14} /> + Add Creation
@@ -1547,70 +1578,70 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 </div>
               </div>
 
-              {/* 4 Metric Cards (Matching Screenshot 2) */}
+              {/* 4 Metric Cards (Storefront Luxury Aesthetic) */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "28px" }}>
                 {/* 1. Total Revenue */}
-                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px 20px" }}>
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px 20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.08em" }}>
                       TOTAL REVENUE
                     </span>
-                    <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "rgba(193, 136, 71, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#c18847", fontSize: "11px", fontWeight: 700 }}>
+                    <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: THEME.cream, display: "flex", alignItems: "center", justifyContent: "center", color: THEME.gold, fontSize: "11px", fontWeight: 700 }}>
                       ₹
                     </span>
                   </div>
-                  <div style={{ fontSize: "24px", fontWeight: 800, color: "#ffffff", margin: "10px 0 4px" }}>
+                  <div style={{ fontSize: "28px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink, margin: "8px 0 2px" }}>
                     ₹ {totalRevenue.toLocaleString("en-IN")}
                   </div>
-                  <div style={{ fontSize: "10.5px", color: "#10b981", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <div style={{ fontSize: "11px", color: THEME.greenText, display: "flex", alignItems: "center", gap: "4px" }}>
                     <TrendingUp size={12} /> from {orders.length} customer orders
                   </div>
                 </div>
 
                 {/* 2. Active Orders */}
-                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px 20px" }}>
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px 20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.08em" }}>
                       ACTIVE ORDERS
                     </span>
-                    <ShoppingBag size={14} style={{ color: "#3b82f6" }} />
+                    <ShoppingBag size={14} style={{ color: THEME.blueText }} />
                   </div>
-                  <div style={{ fontSize: "24px", fontWeight: 800, color: "#ffffff", margin: "10px 0 4px" }}>
+                  <div style={{ fontSize: "28px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink, margin: "8px 0 2px" }}>
                     {activeOrdersCount}
                   </div>
-                  <div style={{ fontSize: "10.5px", color: "#3b82f6" }}>
+                  <div style={{ fontSize: "11px", color: THEME.blueText }}>
                     On track in fulfillment
                   </div>
                 </div>
 
                 {/* 3. Low-Stock SKUs */}
-                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px 20px" }}>
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px 20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.08em" }}>
                       LOW-STOCK SKUS
                     </span>
-                    <Boxes size={14} style={{ color: "#f59e0b" }} />
+                    <Boxes size={14} style={{ color: THEME.amberText }} />
                   </div>
-                  <div style={{ fontSize: "24px", fontWeight: 800, color: "#ffffff", margin: "10px 0 4px" }}>
+                  <div style={{ fontSize: "28px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink, margin: "8px 0 2px" }}>
                     {lowStockCount}
                   </div>
-                  <div style={{ fontSize: "10.5px", color: "#f59e0b", display: "flex", alignItems: "center", gap: "4px" }}>
+                  <div style={{ fontSize: "11px", color: THEME.amberText, display: "flex", alignItems: "center", gap: "4px" }}>
                     <AlertTriangle size={11} /> Needs attention
                   </div>
                 </div>
 
                 {/* 4. Total Customers */}
-                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px 20px" }}>
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px 20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.08em" }}>
                       TOTAL CUSTOMERS
                     </span>
-                    <User size={14} style={{ color: "#10b981" }} />
+                    <User size={14} style={{ color: THEME.greenText }} />
                   </div>
-                  <div style={{ fontSize: "24px", fontWeight: 800, color: "#ffffff", margin: "10px 0 4px" }}>
+                  <div style={{ fontSize: "28px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink, margin: "8px 0 2px" }}>
                     {customersList.length}
                   </div>
-                  <div style={{ fontSize: "10.5px", color: "#10b981" }}>
+                  <div style={{ fontSize: "11px", color: THEME.greenText }}>
                     ↑ Active VIP clients
                   </div>
                 </div>
@@ -1619,45 +1650,45 @@ export default function AdminView({ onBack }: AdminViewProps) {
               {/* Middle Section: Orders Requiring Attention + Inventory Alerts */}
               <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: "20px", marginBottom: "28px" }}>
                 {/* Orders Requiring Attention */}
-                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "20px" }}>
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                    <h3 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#f8fafc", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                      ORDERS REQUIRING ATTENTION
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink, letterSpacing: "0.02em" }}>
+                      Orders Requiring Attention
                     </h3>
                     <button
                       onClick={() => setActiveTab("orders")}
-                      style={{ background: "transparent", border: "none", color: "#c18847", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}
+                      style={{ background: "transparent", border: "none", color: THEME.gold, fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}
                     >
                       View all →
                     </button>
                   </div>
 
                   {orders.length === 0 ? (
-                    <div style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "12px" }}>
+                    <div style={{ padding: "32px", textAlign: "center", color: THEME.inkSubtle, fontSize: "12px" }}>
                       No pending orders. All client orders are dispatched.
                     </div>
                   ) : (
                     <div style={{ overflowX: "auto" }}>
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px" }}>
                         <thead>
-                          <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.06)", textAlign: "left" }}>
-                            <th style={{ padding: "8px 10px" }}>ORDER ID</th>
-                            <th style={{ padding: "8px 10px" }}>CUSTOMER</th>
-                            <th style={{ padding: "8px 10px" }}>TOTAL</th>
-                            <th style={{ padding: "8px 10px" }}>PAYMENT</th>
-                            <th style={{ padding: "8px 10px" }}>FULFILLMENT</th>
-                            <th style={{ padding: "8px 10px", textAlign: "right" }}>INVOICE</th>
+                          <tr style={{ color: THEME.gold, borderBottom: `1px solid ${THEME.inkBorder}`, background: THEME.cream, textAlign: "left" }}>
+                            <th style={{ padding: "9px 12px", fontWeight: 700 }}>ORDER ID</th>
+                            <th style={{ padding: "9px 12px", fontWeight: 700 }}>CUSTOMER</th>
+                            <th style={{ padding: "9px 12px", fontWeight: 700 }}>TOTAL</th>
+                            <th style={{ padding: "9px 12px", fontWeight: 700 }}>PAYMENT</th>
+                            <th style={{ padding: "9px 12px", fontWeight: 700 }}>FULFILLMENT</th>
+                            <th style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700 }}>INVOICE</th>
                           </tr>
                         </thead>
                         <tbody>
                           {orders.slice(0, 5).map((o) => {
                             const isPaid = (o.payment_status || "paid").toLowerCase() === "paid";
                             return (
-                              <tr key={o.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
-                                <td style={{ padding: "10px", fontWeight: 600, color: "#c18847" }}>{o.id}</td>
-                                <td style={{ padding: "10px" }}>{o.client_name || o.customer_name}</td>
-                                <td style={{ padding: "10px", fontWeight: 700 }}>{o.total_amount || `₹${o.total_price}`}</td>
-                                <td style={{ padding: "10px" }}>
+                              <tr key={o.id} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
+                                <td style={{ padding: "10px 12px", fontWeight: 600, color: THEME.gold }}>{o.id}</td>
+                                <td style={{ padding: "10px 12px", color: THEME.ink }}>{o.client_name || o.customer_name}</td>
+                                <td style={{ padding: "10px 12px", fontWeight: 700, color: THEME.ink }}>{o.total_amount || `₹${o.total_price}`}</td>
+                                <td style={{ padding: "10px 12px" }}>
                                   <span
                                     style={{
                                       display: "inline-block",
@@ -1665,14 +1696,14 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                       borderRadius: "999px",
                                       fontSize: "10px",
                                       fontWeight: 700,
-                                      background: isPaid ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                                      color: isPaid ? "#10b981" : "#ef4444",
+                                      background: isPaid ? THEME.greenBg : THEME.redBg,
+                                      color: isPaid ? THEME.greenText : THEME.redText,
                                     }}
                                   >
                                     {isPaid ? "PAID" : "FAILED"}
                                   </span>
                                 </td>
-                                <td style={{ padding: "10px" }}>
+                                <td style={{ padding: "10px 12px" }}>
                                   <span
                                     style={{
                                       display: "inline-block",
@@ -1682,28 +1713,28 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                       fontWeight: 700,
                                       background:
                                         o.status === "delivered"
-                                          ? "rgba(16, 185, 129, 0.15)"
+                                          ? THEME.greenBg
                                           : o.status === "dispatched"
-                                          ? "rgba(168, 85, 247, 0.15)"
-                                          : "rgba(59, 130, 246, 0.15)",
+                                          ? THEME.amberBg
+                                          : THEME.blueBg,
                                       color:
                                         o.status === "delivered"
-                                          ? "#10b981"
+                                          ? THEME.greenText
                                           : o.status === "dispatched"
-                                          ? "#c084fc"
-                                          : "#60a5fa",
+                                          ? THEME.amberText
+                                          : THEME.blueText,
                                     }}
                                   >
                                     {o.status.toUpperCase()}
                                   </span>
                                 </td>
-                                <td style={{ padding: "10px", textAlign: "right" }}>
+                                <td style={{ padding: "10px 12px", textAlign: "right" }}>
                                   <button
                                     onClick={() => setSelectedInvoiceOrder(o)}
                                     style={{
-                                      background: "rgba(255, 255, 255, 0.06)",
-                                      border: "1px solid rgba(255, 255, 255, 0.1)",
-                                      color: "#f8fafc",
+                                      background: THEME.cream,
+                                      border: `1px solid ${THEME.inkBorder}`,
+                                      color: THEME.ink,
                                       padding: "3px 8px",
                                       borderRadius: "4px",
                                       fontSize: "10px",
@@ -1711,6 +1742,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                       display: "inline-flex",
                                       alignItems: "center",
                                       gap: "4px",
+                                      fontWeight: 600,
                                     }}
                                   >
                                     <FileText size={11} /> Invoice
@@ -1725,21 +1757,21 @@ export default function AdminView({ onBack }: AdminViewProps) {
                   )}
                 </div>
 
-                {/* Inventory Alerts (Matching Screenshot 2 right widget) */}
-                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "20px" }}>
+                {/* Inventory Alerts */}
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                    <h3 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#f8fafc", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                      INVENTORY ALERTS
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink, letterSpacing: "0.02em" }}>
+                      Inventory Alerts
                     </h3>
                     <button
                       onClick={() => setActiveTab("inventory")}
-                      style={{ background: "transparent", border: "none", color: "#c18847", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}
+                      style={{ background: "transparent", border: "none", color: THEME.gold, fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}
                     >
                       View inventory →
                     </button>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {products.slice(0, 4).map((p) => {
                       const stock = p.stock_quantity ?? 50;
                       const isLow = stock < 20;
@@ -1750,32 +1782,32 @@ export default function AdminView({ onBack }: AdminViewProps) {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "space-between",
-                            padding: "10px",
-                            background: "#181820",
+                            padding: "9px 12px",
+                            background: THEME.creamLight,
                             borderRadius: "8px",
-                            border: "1px solid rgba(255, 255, 255, 0.04)",
+                            border: `1px solid ${THEME.inkBorderSubtle}`,
                           }}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <img
                               src={p.image}
                               alt={p.name}
-                              style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "6px", background: "#222" }}
+                              style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "6px", background: THEME.cream, border: `1px solid ${THEME.inkBorderSubtle}` }}
                             />
                             <div>
-                              <div style={{ fontSize: "11px", fontWeight: 600, color: "#f8fafc" }}>{p.name}</div>
-                              <div style={{ fontSize: "9.5px", color: "#64748b" }}>{p.category}</div>
+                              <div style={{ fontSize: "11.5px", fontWeight: 600, color: THEME.ink }}>{p.name}</div>
+                              <div style={{ fontSize: "10px", color: THEME.inkSubtle }}>{p.category}</div>
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <span
                               style={{
-                                fontSize: "11px",
+                                fontSize: "10.5px",
                                 fontWeight: 700,
                                 padding: "2px 8px",
                                 borderRadius: "4px",
-                                background: isLow ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)",
-                                color: isLow ? "#ef4444" : "#10b981",
+                                background: isLow ? THEME.amberBg : THEME.greenBg,
+                                color: isLow ? THEME.amberText : THEME.greenText,
                               }}
                             >
                               {stock} units
@@ -1783,11 +1815,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                             <button
                               onClick={() => handleAdjustStock(p.slug, 10)}
                               style={{
-                                background: "rgba(193, 136, 71, 0.12)",
-                                color: "#c18847",
-                                border: "none",
+                                background: THEME.cream,
+                                color: THEME.ink,
+                                border: `1px solid ${THEME.inkBorder}`,
                                 borderRadius: "4px",
-                                padding: "2px 6px",
+                                padding: "2px 8px",
                                 fontSize: "10px",
                                 cursor: "pointer",
                                 fontWeight: 600,
@@ -1803,11 +1835,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 </div>
               </div>
 
-              {/* Lower Section: Recent Orders (Screenshot 3) */}
-              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "20px" }}>
+              {/* Lower Section: Recent Orders */}
+              <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", padding: "20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
-                  <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#f8fafc", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                    RECENT ORDERS
+                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink }}>
+                    Recent Orders
                   </h3>
 
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -1815,9 +1847,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                       value={orderStatusFilter}
                       onChange={(e) => setOrderStatusFilter(e.target.value)}
                       style={{
-                        background: "#181820",
-                        color: "#e2e8f0",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        background: "#ffffff",
+                        color: THEME.ink,
+                        border: `1px solid ${THEME.inkBorder}`,
                         borderRadius: "6px",
                         padding: "6px 12px",
                         fontSize: "11px",
@@ -1836,9 +1868,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                       onClick={fetchOrders}
                       disabled={loading}
                       style={{
-                        background: "#181820",
-                        color: "#94a3b8",
-                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        background: "#ffffff",
+                        color: THEME.inkMuted,
+                        border: `1px solid ${THEME.inkBorder}`,
                         borderRadius: "6px",
                         padding: "6px 10px",
                         cursor: "pointer",
@@ -1853,15 +1885,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px" }}>
                     <thead>
-                      <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "left" }}>
-                        <th style={{ padding: "12px" }}>ORDER ID</th>
-                        <th style={{ padding: "12px" }}>CUSTOMER</th>
-                        <th style={{ padding: "12px" }}>DATE</th>
-                        <th style={{ padding: "12px" }}>ITEMS</th>
-                        <th style={{ padding: "12px" }}>TOTAL</th>
-                        <th style={{ padding: "12px" }}>PAYMENT</th>
-                        <th style={{ padding: "12px" }}>STATUS</th>
-                        <th style={{ padding: "12px", textAlign: "right" }}>ACTIONS</th>
+                      <tr style={{ color: THEME.gold, borderBottom: `1px solid ${THEME.inkBorder}`, background: THEME.cream, textAlign: "left" }}>
+                        <th style={{ padding: "10px 12px", fontWeight: 700 }}>ORDER ID</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 700 }}>CUSTOMER</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 700 }}>DATE</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 700 }}>ITEMS</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 700 }}>TOTAL</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 700 }}>PAYMENT</th>
+                        <th style={{ padding: "10px 12px", fontWeight: 700 }}>STATUS</th>
+                        <th style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700 }}>ACTIONS</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1869,17 +1901,17 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         const items = parseItems(o.items);
                         const isPaid = (o.payment_status || "paid").toLowerCase() === "paid";
                         return (
-                          <tr key={o.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
-                            <td style={{ padding: "12px", fontWeight: 600, color: "#c18847" }}>{o.id}</td>
+                          <tr key={o.id} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
+                            <td style={{ padding: "12px", fontWeight: 600, color: THEME.gold }}>{o.id}</td>
                             <td style={{ padding: "12px" }}>
-                              <div style={{ fontWeight: 600, color: "#ffffff" }}>{o.client_name || o.customer_name}</div>
-                              <div style={{ fontSize: "10px", color: "#64748b" }}>{o.client_email || o.customer_email}</div>
+                              <div style={{ fontWeight: 600, color: THEME.ink }}>{o.client_name || o.customer_name}</div>
+                              <div style={{ fontSize: "10px", color: THEME.inkSubtle }}>{o.client_email || o.customer_email}</div>
                             </td>
-                            <td style={{ padding: "12px", color: "#94a3b8" }}>
+                            <td style={{ padding: "12px", color: THEME.inkMuted }}>
                               {new Date(o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
                             </td>
-                            <td style={{ padding: "12px" }}>{items.length || o.items_count || 1}</td>
-                            <td style={{ padding: "12px", fontWeight: 700 }}>{o.total_amount || `₹${o.total_price}`}</td>
+                            <td style={{ padding: "12px", color: THEME.ink }}>{items.length || o.items_count || 1}</td>
+                            <td style={{ padding: "12px", fontWeight: 700, color: THEME.ink }}>{o.total_amount || `₹${o.total_price}`}</td>
                             <td style={{ padding: "12px" }}>
                               <span
                                 style={{
@@ -1888,8 +1920,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                   borderRadius: "999px",
                                   fontSize: "10px",
                                   fontWeight: 700,
-                                  background: isPaid ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                                  color: isPaid ? "#10b981" : "#ef4444",
+                                  background: isPaid ? THEME.greenBg : THEME.redBg,
+                                  color: isPaid ? THEME.greenText : THEME.redText,
                                 }}
                               >
                                 {isPaid ? "PAID" : "FAILED"}
@@ -1905,16 +1937,16 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                   fontWeight: 700,
                                   background:
                                     o.status === "delivered"
-                                      ? "rgba(16, 185, 129, 0.15)"
+                                      ? THEME.greenBg
                                       : o.status === "dispatched"
-                                      ? "rgba(168, 85, 247, 0.15)"
-                                      : "rgba(59, 130, 246, 0.15)",
+                                      ? THEME.amberBg
+                                      : THEME.blueBg,
                                   color:
                                     o.status === "delivered"
-                                      ? "#10b981"
+                                      ? THEME.greenText
                                       : o.status === "dispatched"
-                                      ? "#c084fc"
-                                      : "#60a5fa",
+                                      ? THEME.amberText
+                                      : THEME.blueText,
                                 }}
                               >
                                 {o.status.toUpperCase()}
@@ -1925,9 +1957,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                 <button
                                   onClick={() => setSelectedInvoiceOrder(o)}
                                   style={{
-                                    background: "rgba(193, 136, 71, 0.12)",
-                                    border: "1px solid rgba(193, 136, 71, 0.3)",
-                                    color: "#c18847",
+                                    background: THEME.cream,
+                                    border: `1px solid ${THEME.inkBorder}`,
+                                    color: THEME.ink,
                                     padding: "4px 8px",
                                     borderRadius: "4px",
                                     fontSize: "10.5px",
@@ -1943,9 +1975,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                 <button
                                   onClick={() => setSelectedOrderDetails(o)}
                                   style={{
-                                    background: "rgba(255, 255, 255, 0.06)",
-                                    border: "1px solid rgba(255, 255, 255, 0.1)",
-                                    color: "#f8fafc",
+                                    background: "#ffffff",
+                                    border: `1px solid ${THEME.inkBorder}`,
+                                    color: THEME.inkMuted,
                                     padding: "4px 8px",
                                     borderRadius: "4px",
                                     fontSize: "10.5px",
@@ -1966,18 +1998,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
             </div>
           )}
 
-          {/* ================= TAB 2: CREATIONS CATALOGUE (SCREENSHOT 4) ================= */}
+          {/* ================= TAB 2: CREATIONS CATALOGUE (STOREFRONT THEME) ================= */}
           {activeTab === "creations" && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
                 <div>
-                  <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
                     STUDIO DIRECTOR CONSOLE
                   </div>
-                  <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                  <h1 style={{ fontFamily: THEME.fontSerif, fontSize: "32px", fontWeight: 600, margin: "4px 0 0", color: THEME.ink }}>
                     CREATIONS CATALOGUE
                   </h1>
-                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: THEME.inkMuted }}>
                     Manage your archival creations, photoshoot releases, pricing, and shade availability.
                   </p>
                 </div>
@@ -1985,10 +2017,10 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 <button
                   onClick={() => setIsAddModalOpen(true)}
                   style={{
-                    background: "linear-gradient(135deg, #c18847 0%, #a86b2b 100%)",
+                    background: THEME.ink,
                     color: "#ffffff",
                     border: "none",
-                    borderRadius: "6px",
+                    borderRadius: "4px",
                     padding: "10px 20px",
                     fontSize: "12px",
                     fontWeight: 700,
@@ -1996,7 +2028,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
-                    boxShadow: "0 4px 14px rgba(193, 136, 71, 0.3)",
+                    boxShadow: "0 4px 14px rgba(33, 19, 15, 0.18)",
                   }}
                 >
                   <Plus size={14} /> + Add New Creation
@@ -2004,8 +2036,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
               </div>
 
               {/* Filters & Search */}
-              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "14px 18px", marginBottom: "18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-                <span style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff" }}>
+              <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "14px 18px", marginBottom: "18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: THEME.ink }}>
                   CATALOGUE ({filteredProducts.length})
                 </span>
 
@@ -2014,9 +2046,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
                     style={{
-                      background: "#181820",
-                      color: "#e2e8f0",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      background: "#ffffff",
+                      color: THEME.ink,
+                      border: `1px solid ${THEME.inkBorder}`,
                       borderRadius: "6px",
                       padding: "6px 12px",
                       fontSize: "11px",
@@ -2035,9 +2067,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     value={stockHealthFilter}
                     onChange={(e) => setStockHealthFilter(e.target.value)}
                     style={{
-                      background: "#181820",
-                      color: "#e2e8f0",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      background: "#ffffff",
+                      color: THEME.ink,
+                      border: `1px solid ${THEME.inkBorder}`,
                       borderRadius: "6px",
                       padding: "6px 12px",
                       fontSize: "11px",
@@ -2051,19 +2083,19 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 </div>
               </div>
 
-              {/* Table Matching Screenshot 4 */}
-              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", overflow: "hidden" }}>
+              {/* Creations Table */}
+              <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
                   <thead>
-                    <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "#16161b" }}>
-                      <th style={{ padding: "12px 16px" }}>SKU</th>
-                      <th style={{ padding: "12px 16px" }}>CREATION NAME</th>
-                      <th style={{ padding: "12px 16px" }}>CATEGORY</th>
-                      <th style={{ padding: "12px 16px" }}>SELLING PRICE</th>
-                      <th style={{ padding: "12px 16px" }}>VARIANTS</th>
-                      <th style={{ padding: "12px 16px" }}>TOTAL STOCK</th>
-                      <th style={{ padding: "12px 16px" }}>STATUS</th>
-                      <th style={{ padding: "12px 16px", textAlign: "right" }}>ACTIONS</th>
+                    <tr style={{ color: THEME.gold, borderBottom: `1px solid ${THEME.inkBorder}`, background: THEME.cream }}>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>SKU</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>CREATION NAME</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>CATEGORY</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>SELLING PRICE</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>VARIANTS</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>TOTAL STOCK</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>STATUS</th>
+                      <th style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700 }}>ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2071,21 +2103,21 @@ export default function AdminView({ onBack }: AdminViewProps) {
                       const sku = String(idx + 1).padStart(2, "0");
                       const stock = p.stock_quantity ?? 50;
                       return (
-                        <tr key={p.slug || p.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
-                          <td style={{ padding: "12px 16px", color: "#64748b", fontFamily: "monospace" }}>{sku}</td>
+                        <tr key={p.slug || p.id} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
+                          <td style={{ padding: "12px 16px", color: THEME.inkSubtle, fontFamily: "monospace" }}>{sku}</td>
                           <td style={{ padding: "12px 16px" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                               <img
                                 src={p.image}
                                 alt={p.name}
-                                style={{ width: "38px", height: "38px", objectFit: "cover", borderRadius: "6px", background: "#222" }}
+                                style={{ width: "38px", height: "38px", objectFit: "cover", borderRadius: "6px", background: THEME.cream, border: `1px solid ${THEME.inkBorderSubtle}` }}
                               />
                               <div>
-                                <div style={{ fontWeight: 600, color: "#ffffff" }}>{p.name}</div>
-                                <div style={{ fontSize: "10px", color: "#64748b", display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                                <div style={{ fontWeight: 600, color: THEME.ink }}>{p.name}</div>
+                                <div style={{ fontSize: "10px", color: THEME.inkSubtle, display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
                                   <span>{p.slug}</span>
                                   {p.images && p.images.length > 1 && (
-                                    <span style={{ fontSize: "9px", background: "rgba(193, 136, 71, 0.15)", color: "#c18847", padding: "1px 5px", borderRadius: "4px", fontWeight: 700 }}>
+                                    <span style={{ fontSize: "9px", background: THEME.cream, color: THEME.gold, padding: "1px 6px", borderRadius: "4px", fontWeight: 700, border: `1px solid ${THEME.inkBorderSubtle}` }}>
                                       📷 {p.images.length} photos
                                     </span>
                                   )}
@@ -2093,19 +2125,19 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               </div>
                             </div>
                           </td>
-                          <td style={{ padding: "12px 16px", color: "#94a3b8" }}>{p.category}</td>
-                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "#ffffff" }}>
+                          <td style={{ padding: "12px 16px", color: THEME.inkMuted }}>{p.category}</td>
+                          <td style={{ padding: "12px 16px", fontWeight: 700, color: THEME.ink }}>
                             ₹ {p.price.toLocaleString("en-IN")}
                           </td>
-                          <td style={{ padding: "12px 16px", color: "#94a3b8" }}>
+                          <td style={{ padding: "12px 16px", color: THEME.inkMuted }}>
                             <div style={{ display: "flex", gap: "4px" }}>
-                              <span style={{ background: "#1c1c24", padding: "2px 6px", borderRadius: "4px", fontSize: "9.5px" }}>Full Size</span>
-                              <span style={{ background: "#1c1c24", padding: "2px 6px", borderRadius: "4px", fontSize: "9.5px" }}>Travel</span>
+                              <span style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorderSubtle}`, padding: "2px 6px", borderRadius: "4px", fontSize: "9.5px", color: THEME.inkMuted }}>Full Size</span>
+                              <span style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorderSubtle}`, padding: "2px 6px", borderRadius: "4px", fontSize: "9.5px", color: THEME.inkMuted }}>Travel</span>
                             </div>
                           </td>
-                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{stock} units</td>
+                          <td style={{ padding: "12px 16px", fontWeight: 600, color: THEME.ink }}>{stock} units</td>
                           <td style={{ padding: "12px 16px" }}>
-                            <span style={{ display: "inline-block", padding: "3px 8px", borderRadius: "999px", fontSize: "10px", fontWeight: 700, background: "rgba(16, 185, 129, 0.15)", color: "#10b981" }}>
+                            <span style={{ display: "inline-block", padding: "3px 8px", borderRadius: "999px", fontSize: "10px", fontWeight: 700, background: THEME.greenBg, color: THEME.greenText }}>
                               ACTIVE
                             </span>
                           </td>
@@ -2113,14 +2145,14 @@ export default function AdminView({ onBack }: AdminViewProps) {
                             <div style={{ display: "inline-flex", gap: "6px" }}>
                               <button
                                 onClick={() => handleCopyProductJson(p)}
-                                style={{ background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#94a3b8", padding: "4px 8px", borderRadius: "4px", fontSize: "10.5px", cursor: "pointer" }}
+                                style={{ background: "#ffffff", border: `1px solid ${THEME.inkBorder}`, color: THEME.inkMuted, padding: "4px 8px", borderRadius: "4px", fontSize: "10.5px", cursor: "pointer" }}
                                 title="Copy JSON"
                               >
                                 <Copy size={11} /> Copy JSON
                               </button>
                               <button
                                 onClick={() => handleDeleteProduct(p)}
-                                style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", padding: "4px 8px", borderRadius: "4px", fontSize: "10.5px", cursor: "pointer" }}
+                                style={{ background: THEME.redBg, border: "1px solid rgba(163, 77, 69, 0.2)", color: THEME.redText, padding: "4px 8px", borderRadius: "4px", fontSize: "10.5px", cursor: "pointer" }}
                                 title="Delete Piece"
                               >
                                 <Trash2 size={11} />
@@ -2136,18 +2168,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
             </div>
           )}
 
-          {/* ================= TAB 3: INVENTORY & SKU MATRIX (SCREENSHOT 5) ================= */}
+          {/* ================= TAB 3: INVENTORY & SKU MATRIX (STOREFRONT THEME) ================= */}
           {activeTab === "inventory" && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
                 <div>
-                  <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
                     STUDIO DIRECTOR CONSOLE
                   </div>
-                  <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                  <h1 style={{ fontFamily: THEME.fontSerif, fontSize: "32px", fontWeight: 600, margin: "4px 0 0", color: THEME.ink }}>
                     INVENTORY & SKU MATRIX
                   </h1>
-                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: THEME.inkMuted }}>
                     Size-level telemetry, available-to-sell calculations, buffer alerts, and stock adjustments.
                   </p>
                 </div>
@@ -2166,9 +2198,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     showNotice("✓ Inventory SKU Matrix CSV exported successfully!");
                   }}
                   style={{
-                    background: "rgba(255, 255, 255, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
-                    color: "#ffffff",
+                    background: THEME.cardBg,
+                    border: `1px solid ${THEME.inkBorder}`,
+                    color: THEME.ink,
                     borderRadius: "6px",
                     padding: "8px 16px",
                     fontSize: "11.5px",
@@ -2183,41 +2215,41 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 </button>
               </div>
 
-              {/* Table Matching Screenshot 5 */}
-              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", overflow: "hidden" }}>
-                <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", fontSize: "13px", fontWeight: 700, color: "#ffffff" }}>
+              {/* Variant Matrix Table */}
+              <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                <div style={{ padding: "14px 18px", borderBottom: `1px solid ${THEME.inkBorder}`, fontSize: "13px", fontWeight: 700, color: THEME.ink }}>
                   VARIANT MATRIX ({skuMatrix.length})
                 </div>
 
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
                   <thead>
-                    <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "#16161b" }}>
-                      <th style={{ padding: "12px 16px" }}>VARIANT SKU</th>
-                      <th style={{ padding: "12px 16px" }}>CREATION</th>
-                      <th style={{ padding: "12px 16px" }}>SHADE / SIZE</th>
-                      <th style={{ padding: "12px 16px" }}>ON HAND</th>
-                      <th style={{ padding: "12px 16px" }}>RESERVED</th>
-                      <th style={{ padding: "12px 16px" }}>AVAILABLE TO SELL</th>
-                      <th style={{ padding: "12px 16px" }}>HEALTH</th>
-                      <th style={{ padding: "12px 16px", textAlign: "right" }}>ADJUST</th>
+                    <tr style={{ color: THEME.gold, borderBottom: `1px solid ${THEME.inkBorder}`, background: THEME.cream }}>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>VARIANT SKU</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>CREATION</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>SHADE / SIZE</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>ON HAND</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>RESERVED</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>AVAILABLE TO SELL</th>
+                      <th style={{ padding: "12px 16px", fontWeight: 700 }}>HEALTH</th>
+                      <th style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700 }}>ADJUST</th>
                     </tr>
                   </thead>
                   <tbody>
                     {skuMatrix.map((item) => (
-                      <tr key={item.sku} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
-                        <td style={{ padding: "12px 16px", fontFamily: "monospace", color: "#c18847" }}>{item.sku}</td>
+                      <tr key={item.sku} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
+                        <td style={{ padding: "12px 16px", fontFamily: "monospace", color: THEME.gold, fontWeight: 600 }}>{item.sku}</td>
                         <td style={{ padding: "12px 16px" }}>
-                          <div style={{ fontWeight: 600, color: "#ffffff" }}>{item.product.name}</div>
-                          <div style={{ fontSize: "10px", color: "#64748b" }}>{item.product.category}</div>
+                          <div style={{ fontWeight: 600, color: THEME.ink }}>{item.product.name}</div>
+                          <div style={{ fontSize: "10px", color: THEME.inkSubtle }}>{item.product.category}</div>
                         </td>
                         <td style={{ padding: "12px 16px" }}>
-                          <span style={{ background: "#1c1c24", border: "1px solid rgba(255,255,255,0.08)", padding: "3px 8px", borderRadius: "4px", fontSize: "10.5px" }}>
+                          <span style={{ background: THEME.cream, border: `1px solid ${THEME.inkBorderSubtle}`, padding: "3px 8px", borderRadius: "4px", fontSize: "10.5px", color: THEME.ink }}>
                             {item.shadeName}
                           </span>
                         </td>
-                        <td style={{ padding: "12px 16px" }}>{item.onHand}</td>
-                        <td style={{ padding: "12px 16px", color: "#94a3b8" }}>{item.reserved}</td>
-                        <td style={{ padding: "12px 16px", fontWeight: 700, color: "#10b981" }}>{item.available}</td>
+                        <td style={{ padding: "12px 16px", color: THEME.ink }}>{item.onHand}</td>
+                        <td style={{ padding: "12px 16px", color: THEME.inkMuted }}>{item.reserved}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: THEME.greenText }}>{item.available}</td>
                         <td style={{ padding: "12px 16px" }}>
                           <span
                             style={{
@@ -2226,8 +2258,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               borderRadius: "999px",
                               fontSize: "10px",
                               fontWeight: 700,
-                              background: item.health === "ACTIVE" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                              color: item.health === "ACTIVE" ? "#10b981" : "#ef4444",
+                              background: item.health === "ACTIVE" ? THEME.greenBg : THEME.amberBg,
+                              color: item.health === "ACTIVE" ? THEME.greenText : THEME.amberText,
                             }}
                           >
                             {item.health}
@@ -2237,13 +2269,13 @@ export default function AdminView({ onBack }: AdminViewProps) {
                           <div style={{ display: "inline-flex", gap: "6px" }}>
                             <button
                               onClick={() => handleAdjustStock(item.product.slug, -5)}
-                              style={{ background: "#1c1c24", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#e2e8f0", padding: "3px 7px", borderRadius: "4px", fontSize: "10px", cursor: "pointer" }}
+                              style={{ background: THEME.cream, border: `1px solid ${THEME.inkBorderSubtle}`, color: THEME.ink, padding: "3px 7px", borderRadius: "4px", fontSize: "10px", cursor: "pointer" }}
                             >
                               -5
                             </button>
                             <button
                               onClick={() => handleAdjustStock(item.product.slug, 5)}
-                              style={{ background: "#1c1c24", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#10b981", padding: "3px 7px", borderRadius: "4px", fontSize: "10px", cursor: "pointer", fontWeight: 700 }}
+                              style={{ background: THEME.cream, border: `1px solid ${THEME.inkBorderSubtle}`, color: THEME.greenText, padding: "3px 7px", borderRadius: "4px", fontSize: "10px", cursor: "pointer", fontWeight: 700 }}
                             >
                               +5
                             </button>
@@ -2257,18 +2289,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
             </div>
           )}
 
-          {/* ================= TAB 4: ORDERS & DISPATCH ================= */}
+          {/* ================= TAB 4: ORDERS & DISPATCH (STOREFRONT THEME) ================= */}
           {activeTab === "orders" && (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
                 <div>
-                  <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
                     STUDIO DIRECTOR CONSOLE
                   </div>
-                  <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                  <h1 style={{ fontFamily: THEME.fontSerif, fontSize: "32px", fontWeight: 600, margin: "4px 0 0", color: THEME.ink }}>
                     ORDERS & DISPATCH MANAGEMENT
                   </h1>
-                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: THEME.inkMuted }}>
                     Live customer order dispatch pipeline, courier tracking, and GST tax invoice generation.
                   </p>
                 </div>
@@ -2276,9 +2308,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 <button
                   onClick={handleCreateDynamicTestOrder}
                   style={{
-                    background: "rgba(16, 185, 129, 0.12)",
-                    border: "1px solid rgba(16, 185, 129, 0.3)",
-                    color: "#10b981",
+                    background: THEME.greenBg,
+                    border: "1px solid rgba(45, 94, 53, 0.3)",
+                    color: THEME.greenText,
                     borderRadius: "6px",
                     padding: "8px 16px",
                     fontSize: "11.5px",
@@ -2300,9 +2332,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     key={st}
                     onClick={() => setOrderStatusFilter(st)}
                     style={{
-                      background: orderStatusFilter === st ? "#c18847" : "#131317",
-                      color: orderStatusFilter === st ? "#ffffff" : "#94a3b8",
-                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      background: orderStatusFilter === st ? THEME.ink : THEME.cardBg,
+                      color: orderStatusFilter === st ? "#ffffff" : THEME.inkMuted,
+                      border: `1px solid ${orderStatusFilter === st ? THEME.ink : THEME.inkBorder}`,
                       borderRadius: "999px",
                       padding: "6px 14px",
                       fontSize: "11px",
@@ -2317,46 +2349,46 @@ export default function AdminView({ onBack }: AdminViewProps) {
               </div>
 
               {/* Orders Full Table */}
-              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", overflow: "hidden" }}>
+              <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
                   <thead>
-                    <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "#16161b" }}>
-                      <th style={{ padding: "14px 16px" }}>ORDER ID</th>
-                      <th style={{ padding: "14px 16px" }}>CUSTOMER & ADDRESS</th>
-                      <th style={{ padding: "14px 16px" }}>ITEMS</th>
-                      <th style={{ padding: "14px 16px" }}>TOTAL</th>
-                      <th style={{ padding: "14px 16px" }}>STATUS</th>
-                      <th style={{ padding: "14px 16px" }}>TRACKING</th>
-                      <th style={{ padding: "14px 16px", textAlign: "right" }}>ACTIONS</th>
+                    <tr style={{ color: THEME.gold, borderBottom: `1px solid ${THEME.inkBorder}`, background: THEME.cream }}>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>ORDER ID</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>CUSTOMER & ADDRESS</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>ITEMS</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>TOTAL</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>STATUS</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>TRACKING</th>
+                      <th style={{ padding: "14px 16px", textAlign: "right", fontWeight: 700 }}>ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredOrders.map((o) => {
                       const items = parseItems(o.items);
                       return (
-                        <tr key={o.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
-                          <td style={{ padding: "14px 16px", fontWeight: 700, color: "#c18847" }}>
+                        <tr key={o.id} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
+                          <td style={{ padding: "14px 16px", fontWeight: 700, color: THEME.gold }}>
                             <div>{o.id}</div>
-                            <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>
+                            <div style={{ fontSize: "10px", color: THEME.inkSubtle, marginTop: "2px" }}>
                               {new Date(o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                             </div>
                           </td>
                           <td style={{ padding: "14px 16px" }}>
-                            <div style={{ fontWeight: 600, color: "#ffffff" }}>{o.client_name || o.customer_name}</div>
-                            <div style={{ fontSize: "10.5px", color: "#94a3b8" }}>{o.client_email || o.customer_email}</div>
-                            <div style={{ fontSize: "9.5px", color: "#64748b" }}>{o.shipping_address}</div>
+                            <div style={{ fontWeight: 600, color: THEME.ink }}>{o.client_name || o.customer_name}</div>
+                            <div style={{ fontSize: "10.5px", color: THEME.inkMuted }}>{o.client_email || o.customer_email}</div>
+                            <div style={{ fontSize: "9.5px", color: THEME.inkSubtle }}>{o.shipping_address}</div>
                           </td>
                           <td style={{ padding: "14px 16px" }}>
                             {items.length > 0 ? (
                               <div>
-                                <div style={{ color: "#f8fafc", fontWeight: 500 }}>{items[0].name}</div>
-                                {items.length > 1 && <div style={{ fontSize: "10px", color: "#64748b" }}>+{items.length - 1} more items</div>}
+                                <div style={{ color: THEME.ink, fontWeight: 500 }}>{items[0].name}</div>
+                                {items.length > 1 && <div style={{ fontSize: "10px", color: THEME.inkSubtle }}>+{items.length - 1} more items</div>}
                               </div>
                             ) : (
-                              <span>{o.items_count || 1} pieces</span>
+                              <span style={{ color: THEME.ink }}>{o.items_count || 1} pieces</span>
                             )}
                           </td>
-                          <td style={{ padding: "14px 16px", fontWeight: 700, color: "#ffffff" }}>
+                          <td style={{ padding: "14px 16px", fontWeight: 700, color: THEME.ink }}>
                             {o.total_amount || `₹${o.total_price}`}
                           </td>
                           <td style={{ padding: "14px 16px" }}>
@@ -2364,9 +2396,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               value={o.status}
                               onChange={(e) => handleUpdateStatus(o.id, e.target.value as any)}
                               style={{
-                                background: "#1c1c24",
-                                color: "#f8fafc",
-                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                background: "#ffffff",
+                                color: THEME.ink,
+                                border: `1px solid ${THEME.inkBorder}`,
                                 borderRadius: "4px",
                                 padding: "4px 8px",
                                 fontSize: "10.5px",
@@ -2381,11 +2413,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                           </td>
                           <td style={{ padding: "14px 16px" }}>
                             {o.tracking_number ? (
-                              <span style={{ fontFamily: "monospace", fontSize: "10.5px", color: "#c084fc", background: "rgba(168, 85, 247, 0.1)", padding: "2px 6px", borderRadius: "4px" }}>
+                              <span style={{ fontFamily: "monospace", fontSize: "10.5px", color: THEME.gold, background: THEME.cream, padding: "2px 6px", borderRadius: "4px", border: `1px solid ${THEME.inkBorderSubtle}` }}>
                                 {o.tracking_number}
                               </span>
                             ) : (
-                              <span style={{ fontSize: "10px", color: "#64748b" }}>Not dispatched</span>
+                              <span style={{ fontSize: "10px", color: THEME.inkSubtle }}>Not dispatched</span>
                             )}
                           </td>
                           <td style={{ padding: "14px 16px", textAlign: "right" }}>
@@ -2393,9 +2425,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               <button
                                 onClick={() => setSelectedInvoiceOrder(o)}
                                 style={{
-                                  background: "rgba(193, 136, 71, 0.15)",
-                                  border: "1px solid rgba(193, 136, 71, 0.35)",
-                                  color: "#c18847",
+                                  background: THEME.cream,
+                                  border: `1px solid ${THEME.inkBorder}`,
+                                  color: THEME.ink,
                                   padding: "5px 10px",
                                   borderRadius: "4px",
                                   fontSize: "11px",
@@ -2419,42 +2451,42 @@ export default function AdminView({ onBack }: AdminViewProps) {
             </div>
           )}
 
-          {/* ================= TAB 5: CUSTOMERS DIRECTORY ================= */}
+          {/* ================= TAB 5: CUSTOMERS DIRECTORY (STOREFRONT THEME) ================= */}
           {activeTab === "customers" && (
             <div>
               <div style={{ marginBottom: "20px" }}>
-                <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                <div style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
                   STUDIO DIRECTOR CONSOLE
                 </div>
-                <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                <h1 style={{ fontFamily: THEME.fontSerif, fontSize: "32px", fontWeight: 600, margin: "4px 0 0", color: THEME.ink }}>
                   CLIENTS & CUSTOMER DIRECTORY
                 </h1>
-                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: THEME.inkMuted }}>
                   VIP client engagement, order frequency, total lifetime value, and city tiering.
                 </p>
               </div>
 
-              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", overflow: "hidden" }}>
+              <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
                   <thead>
-                    <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "#16161b" }}>
-                      <th style={{ padding: "14px 16px" }}>CLIENT NAME</th>
-                      <th style={{ padding: "14px 16px" }}>EMAIL</th>
-                      <th style={{ padding: "14px 16px" }}>PHONE</th>
-                      <th style={{ padding: "14px 16px" }}>LOCATION</th>
-                      <th style={{ padding: "14px 16px" }}>ORDERS</th>
-                      <th style={{ padding: "14px 16px", textAlign: "right" }}>LIFETIME VALUE</th>
+                    <tr style={{ color: THEME.gold, borderBottom: `1px solid ${THEME.inkBorder}`, background: THEME.cream }}>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>CLIENT NAME</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>EMAIL</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>PHONE</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>LOCATION</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 700 }}>ORDERS</th>
+                      <th style={{ padding: "14px 16px", textAlign: "right", fontWeight: 700 }}>LIFETIME VALUE</th>
                     </tr>
                   </thead>
                   <tbody>
                     {customersList.map((c) => (
-                      <tr key={c.email} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
-                        <td style={{ padding: "14px 16px", fontWeight: 600, color: "#ffffff" }}>{c.name}</td>
-                        <td style={{ padding: "14px 16px", color: "#94a3b8" }}>{c.email}</td>
-                        <td style={{ padding: "14px 16px", color: "#64748b" }}>{c.phone}</td>
-                        <td style={{ padding: "14px 16px", color: "#94a3b8" }}>{c.city}</td>
-                        <td style={{ padding: "14px 16px", fontWeight: 600 }}>{c.orderCount} order{c.orderCount === 1 ? "" : "s"}</td>
-                        <td style={{ padding: "14px 16px", fontWeight: 700, color: "#c18847", textAlign: "right" }}>
+                      <tr key={c.email} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
+                        <td style={{ padding: "14px 16px", fontWeight: 600, color: THEME.ink }}>{c.name}</td>
+                        <td style={{ padding: "14px 16px", color: THEME.inkMuted }}>{c.email}</td>
+                        <td style={{ padding: "14px 16px", color: THEME.inkSubtle }}>{c.phone}</td>
+                        <td style={{ padding: "14px 16px", color: THEME.inkMuted }}>{c.city}</td>
+                        <td style={{ padding: "14px 16px", fontWeight: 600, color: THEME.ink }}>{c.orderCount} order{c.orderCount === 1 ? "" : "s"}</td>
+                        <td style={{ padding: "14px 16px", fontWeight: 700, color: THEME.gold, textAlign: "right" }}>
                           ₹ {c.totalSpent.toLocaleString("en-IN")}
                         </td>
                       </tr>
@@ -2465,36 +2497,36 @@ export default function AdminView({ onBack }: AdminViewProps) {
             </div>
           )}
 
-          {/* ================= TAB 6: SETTINGS & GATEWAY ================= */}
+          {/* ================= TAB 6: SETTINGS & GATEWAY (STOREFRONT THEME) ================= */}
           {activeTab === "settings" && (
             <div style={{ maxWidth: "800px" }}>
               <div style={{ marginBottom: "20px" }}>
-                <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                <div style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
                   STUDIO DIRECTOR CONSOLE
                 </div>
-                <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                <h1 style={{ fontFamily: THEME.fontSerif, fontSize: "32px", fontWeight: 600, margin: "4px 0 0", color: THEME.ink }}>
                   SYSTEM & SECURITY SETTINGS
                 </h1>
-                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: THEME.inkMuted }}>
                   Administrative credentials, Supabase database synchronization, and gateway protection.
                 </p>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "20px" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", marginBottom: "8px" }}>
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: THEME.ink, marginBottom: "8px" }}>
                     Dedicated Gateway Isolation
                   </div>
-                  <div style={{ fontSize: "11.5px", color: "#94a3b8", lineHeight: 1.6 }}>
+                  <div style={{ fontSize: "12px", color: THEME.inkMuted, lineHeight: 1.6 }}>
                     Direct admin panel login is strictly routed through <b>/sheaura/login</b>. Unauthenticated visits to <b>/admin</b> automatically redirect to the isolated login portal with cryptographic signature verification.
                   </div>
                 </div>
 
-                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "20px" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", marginBottom: "8px" }}>
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: THEME.ink, marginBottom: "8px" }}>
                     Database Synchronization Status
                   </div>
-                  <div style={{ fontSize: "11.5px", color: "#10b981", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ fontSize: "12px", color: THEME.greenText, display: "flex", alignItems: "center", gap: "6px" }}>
                     <ShieldCheck size={16} /> Direct Supabase cloud database connected (PostgreSQL / RLS enabled)
                   </div>
                 </div>
@@ -2504,15 +2536,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
         </main>
       </div>
 
-      {/* ================= ADD NEW CREATION MODAL (WITH PROPER PHOTO UPLOAD BUTTON) ================= */}
+      {/* ================= ADD NEW CREATION MODAL (STOREFRONT THEME) ================= */}
       {isAddModalOpen && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 1000,
-            background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(8px)",
+            background: "rgba(33, 19, 15, 0.65)",
+            backdropFilter: "blur(6px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -2524,49 +2556,49 @@ export default function AdminView({ onBack }: AdminViewProps) {
         >
           <div
             style={{
-              background: "#141418",
-              border: "1px solid rgba(223, 184, 149, 0.25)",
+              background: THEME.cardBg,
+              border: `1px solid ${THEME.inkBorder}`,
               borderRadius: "16px",
               maxWidth: "780px",
               width: "100%",
               maxHeight: "90vh",
               overflowY: "auto",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.7)",
+              boxShadow: "0 25px 60px rgba(33, 19, 15, 0.25)",
               padding: "28px 32px",
-              color: "#f8fafc",
+              color: THEME.ink,
             }}
           >
             {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "16px", marginBottom: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${THEME.inkBorder}`, paddingBottom: "16px", marginBottom: "20px" }}>
               <div>
-                <span style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                <span style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
                   MAISON PRODUCT ATELIER
                 </span>
-                <h2 style={{ margin: "4px 0 0", fontSize: "20px", color: "#ffffff", fontFamily: "Cormorant Garamond, serif", fontWeight: 700 }}>
+                <h2 style={{ margin: "4px 0 0", fontSize: "24px", color: THEME.ink, fontFamily: THEME.fontSerif, fontWeight: 600 }}>
                   Publish New Cosmetic Creation
                 </h2>
-                <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#94a3b8" }}>
+                <p style={{ margin: "4px 0 0", fontSize: "12px", color: THEME.inkMuted }}>
                   Instantly available for customer ordering with live Supabase database sync.
                 </p>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8", padding: "4px" }}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: THEME.inkMuted, padding: "4px" }}
               >
                 <X size={20} />
               </button>
             </div>
 
             {/* Presets Bar */}
-            <div style={{ background: "#1a1a22", border: "1px solid rgba(193, 136, 71, 0.2)", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px" }}>
+            <div style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "12px 16px", marginBottom: "20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "#c18847", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: THEME.gold, display: "inline-flex", alignItems: "center", gap: "5px" }}>
                   <Sparkles size={12} /> 1-Click Maison Presets
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsRawImportOpen(!isRawImportOpen)}
-                  style={{ background: "transparent", border: "none", color: "#c18847", fontSize: "11px", cursor: "pointer", textDecoration: "underline" }}
+                  style={{ background: "transparent", border: "none", color: THEME.gold, fontSize: "11px", cursor: "pointer", textDecoration: "underline" }}
                 >
                   {isRawImportOpen ? "Close Smart Paste" : "Smart Paste / JSON"}
                 </button>
@@ -2579,13 +2611,13 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     type="button"
                     onClick={() => handleApplyPreset(preset)}
                     style={{
-                      background: "#141418",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      background: "#ffffff",
+                      border: `1px solid ${THEME.inkBorder}`,
                       borderRadius: "6px",
                       padding: "7px 10px",
                       fontSize: "11px",
                       fontWeight: 600,
-                      color: "#f8fafc",
+                      color: THEME.ink,
                       cursor: "pointer",
                       textAlign: "left",
                     }}
@@ -2596,18 +2628,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
               </div>
 
               {isRawImportOpen && (
-                <div style={{ marginTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "12px" }}>
+                <div style={{ marginTop: "12px", borderTop: `1px solid ${THEME.inkBorderSubtle}`, paddingTop: "12px" }}>
                   <textarea
                     rows={4}
                     placeholder="Paste product JSON or 'Key: Value' text..."
                     value={rawImportText}
                     onChange={(e) => setRawImportText(e.target.value)}
-                    style={{ width: "100%", padding: "10px", background: "#111116", border: "1px solid rgba(255, 255, 255, 0.15)", borderRadius: "6px", color: "#fff", fontSize: "11.5px" }}
+                    style={{ width: "100%", padding: "10px", background: "#ffffff", border: `1px solid ${THEME.inkBorder}`, borderRadius: "6px", color: THEME.ink, fontSize: "11.5px" }}
                   />
                   <button
                     type="button"
                     onClick={handleParseRawText}
-                    style={{ marginTop: "6px", background: "#c18847", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
+                    style={{ marginTop: "6px", background: THEME.ink, color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
                   >
                     Apply Parsed Details
                   </button>
@@ -2619,7 +2651,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
             <form onSubmit={handleSaveProduct}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
                     Creation Name *
                   </label>
                   <input
@@ -2635,21 +2667,21 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         slug: name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-"),
                       }));
                     }}
-                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
                     Category *
                   </label>
                   <select
                     value={productForm.category}
                     onChange={(e) => setProductForm((prev) => ({ ...prev, category: e.target.value }))}
-                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
                   >
                     {CATEGORY_OPTIONS.map((c) => (
-                      <option key={c} value={c} style={{ background: "#1c1c24", color: "#fff" }}>
+                      <option key={c} value={c} style={{ background: "#ffffff", color: THEME.ink }}>
                         {c}
                       </option>
                     ))}
@@ -2659,7 +2691,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
                     Official Price (INR ₹) *
                   </label>
                   <input
@@ -2668,12 +2700,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     min={1}
                     value={productForm.price}
                     onChange={(e) => setProductForm((prev) => ({ ...prev, price: Number(e.target.value) }))}
-                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
                     Stock Level (Pieces)
                   </label>
                   <input
@@ -2681,12 +2713,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     min={0}
                     value={productForm.stock_quantity}
                     onChange={(e) => setProductForm((prev) => ({ ...prev, stock_quantity: Number(e.target.value) }))}
-                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
                     Badge Tag
                   </label>
                   <input
@@ -2694,35 +2726,35 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     placeholder="e.g. New Arrival"
                     value={productForm.tag}
                     onChange={(e) => setProductForm((prev) => ({ ...prev, tag: e.target.value }))}
-                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
                   />
                 </div>
               </div>
 
-              {/* Photo & Packshot Section with Proper Aligned Buttons */}
-              <div style={{ background: "#181820", border: "1px solid rgba(193, 136, 71, 0.3)", borderRadius: "10px", padding: "18px", marginBottom: "20px" }}>
+              {/* Photo & Packshot Section with Prominent Styled Device Upload Button */}
+              <div style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px", marginBottom: "20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
                   <div>
-                    <label style={{ fontSize: "11.5px", fontWeight: 700, color: "#c18847", textTransform: "uppercase", letterSpacing: "0.08em", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <label style={{ fontSize: "11.5px", fontWeight: 700, color: THEME.gold, textTransform: "uppercase", letterSpacing: "0.08em", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       <ImageIcon size={14} /> Multi-Image Photography & Gallery *
                     </label>
-                    <div style={{ fontSize: "10.5px", color: "#94a3b8", marginTop: "2px" }}>
+                    <div style={{ fontSize: "11px", color: THEME.inkMuted, marginTop: "2px" }}>
                       Add multiple packshots & shade angles for customer PDP thumbnail carousel.
                     </div>
                   </div>
 
                   {/* Tabs */}
-                  <div style={{ display: "inline-flex", gap: "4px", background: "#111116", padding: "3px", borderRadius: "999px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                  <div style={{ display: "inline-flex", gap: "4px", background: THEME.cream, padding: "3px", borderRadius: "999px", border: `1px solid ${THEME.inkBorderSubtle}` }}>
                     <button
                       type="button"
                       onClick={() => setImageSourceTab("upload")}
                       style={{
-                        background: imageSourceTab === "upload" ? "#c18847" : "transparent",
-                        color: imageSourceTab === "upload" ? "#ffffff" : "#94a3b8",
+                        background: imageSourceTab === "upload" ? THEME.ink : "transparent",
+                        color: imageSourceTab === "upload" ? "#ffffff" : THEME.inkMuted,
                         border: "none",
                         borderRadius: "999px",
-                        padding: "4px 12px",
-                        fontSize: "10.5px",
+                        padding: "5px 14px",
+                        fontSize: "11px",
                         fontWeight: 600,
                         cursor: "pointer",
                         display: "inline-flex",
@@ -2736,12 +2768,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
                       type="button"
                       onClick={() => setImageSourceTab("library")}
                       style={{
-                        background: imageSourceTab === "library" ? "#c18847" : "transparent",
-                        color: imageSourceTab === "library" ? "#ffffff" : "#94a3b8",
+                        background: imageSourceTab === "library" ? THEME.ink : "transparent",
+                        color: imageSourceTab === "library" ? "#ffffff" : THEME.inkMuted,
                         border: "none",
                         borderRadius: "999px",
-                        padding: "4px 12px",
-                        fontSize: "10.5px",
+                        padding: "5px 14px",
+                        fontSize: "11px",
                         fontWeight: 600,
                         cursor: "pointer",
                         display: "inline-flex",
@@ -2755,12 +2787,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
                       type="button"
                       onClick={() => setImageSourceTab("url")}
                       style={{
-                        background: imageSourceTab === "url" ? "#c18847" : "transparent",
-                        color: imageSourceTab === "url" ? "#ffffff" : "#94a3b8",
+                        background: imageSourceTab === "url" ? THEME.ink : "transparent",
+                        color: imageSourceTab === "url" ? "#ffffff" : THEME.inkMuted,
                         border: "none",
                         borderRadius: "999px",
-                        padding: "4px 12px",
-                        fontSize: "10.5px",
+                        padding: "5px 14px",
+                        fontSize: "11px",
                         fontWeight: 600,
                         cursor: "pointer",
                         display: "inline-flex",
@@ -2773,15 +2805,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
                   </div>
                 </div>
 
-                {/* Tab 1: Upload Files (PROPERLY ALIGNED PROMINENT BUTTON) */}
+                {/* Tab 1: Upload Files (PROPERLY STYLED STOREFRONT BUTTON) */}
                 {imageSourceTab === "upload" && (
                   <div
                     style={{
-                      border: "2px dashed rgba(193, 136, 71, 0.35)",
+                      border: `2px dashed ${THEME.inkBorder}`,
                       borderRadius: "10px",
-                      padding: "24px 20px",
+                      padding: "26px 20px",
                       textAlign: "center",
-                      background: "#14141a",
+                      background: "#ffffff",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
@@ -2789,15 +2821,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
                       gap: "10px",
                     }}
                   >
-                    <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "rgba(193, 136, 71, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#c18847" }}>
+                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: THEME.cream, display: "flex", alignItems: "center", justifyContent: "center", color: THEME.gold }}>
                       <Upload size={22} />
                     </div>
                     <div>
-                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#f8fafc" }}>
+                      <div style={{ fontSize: "13.5px", fontWeight: 700, color: THEME.ink }}>
                         Upload Product Packshots & Swatches
                       </div>
-                      <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "3px" }}>
-                        Supports PNG, JPG, WebP. Hold Ctrl / Shift to pick multiple photos.
+                      <div style={{ fontSize: "11.5px", color: THEME.inkMuted, marginTop: "3px" }}>
+                        Supports PNG, JPG, WebP. Hold Ctrl / Shift to pick multiple photos from your device.
                       </div>
                     </div>
 
@@ -2806,15 +2838,16 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "8px",
-                        background: "linear-gradient(135deg, #c18847 0%, #9a652a 100%)",
+                        background: THEME.ink,
                         color: "#ffffff",
-                        padding: "10px 22px",
+                        padding: "11px 24px",
                         borderRadius: "999px",
                         fontSize: "12px",
                         fontWeight: 700,
+                        letterSpacing: "0.05em",
                         cursor: "pointer",
-                        boxShadow: "0 4px 14px rgba(193, 136, 71, 0.3)",
-                        marginTop: "6px",
+                        boxShadow: "0 4px 14px rgba(33, 19, 15, 0.2)",
+                        marginTop: "8px",
                       }}
                     >
                       <Upload size={14} />
@@ -2833,7 +2866,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 {/* Tab 2: Maison Library */}
                 {imageSourceTab === "library" && (
                   <div>
-                    <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "8px" }}>
+                    <div style={{ fontSize: "11.5px", color: THEME.inkMuted, marginBottom: "8px" }}>
                       Click any packshot below to toggle into/out of product gallery:
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
@@ -2848,14 +2881,14 @@ export default function AdminView({ onBack }: AdminViewProps) {
                             key={asset.path}
                             onClick={() => handleToggleLibraryAsset(asset.path)}
                             style={{
-                              border: isSelected ? "2px solid #c18847" : "1px solid rgba(255, 255, 255, 0.1)",
+                              border: isSelected ? `2px solid ${THEME.gold}` : `1px solid ${THEME.inkBorder}`,
                               borderRadius: "8px",
                               padding: "6px",
-                              background: "#14141a",
+                              background: "#ffffff",
                               cursor: "pointer",
                               textAlign: "center",
                               position: "relative",
-                              boxShadow: isSelected ? "0 4px 12px rgba(193, 136, 71, 0.25)" : "none",
+                              boxShadow: isSelected ? "0 4px 12px rgba(163, 106, 59, 0.2)" : "none",
                             }}
                           >
                             <img
@@ -2863,7 +2896,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               alt={asset.label}
                               style={{ width: "100%", height: "65px", objectFit: "cover", borderRadius: "6px" }}
                             />
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#f8fafc", marginTop: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            <div style={{ fontSize: "10.5px", fontWeight: 600, color: THEME.ink, marginTop: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                               {asset.label}
                             </div>
                             {isSelected && (
@@ -2872,8 +2905,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                   position: "absolute",
                                   top: "6px",
                                   right: "6px",
-                                  background: isPrimary ? "#c18847" : "#191970",
-                                  color: "#ffffff",
+                                  background: isPrimary ? THEME.ink : THEME.gold,
+                                  color: isPrimary ? THEME.goldLight : "#ffffff",
                                   padding: "2px 6px",
                                   borderRadius: "999px",
                                   fontSize: "9px",
@@ -2909,16 +2942,16 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         padding: "9px 12px",
                         fontSize: "12px",
                         borderRadius: "6px",
-                        border: "1px solid rgba(255, 255, 255, 0.15)",
-                        background: "#1c1c24",
-                        color: "#fff",
+                        border: `1px solid ${THEME.inkBorder}`,
+                        background: "#ffffff",
+                        color: THEME.ink,
                       }}
                     />
                     <button
                       type="button"
                       onClick={() => handleAddImageUrl()}
                       style={{
-                        background: "#c18847",
+                        background: THEME.ink,
                         color: "#ffffff",
                         border: "none",
                         padding: "9px 16px",
@@ -2934,18 +2967,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 )}
 
                 {/* Gallery Strip Preview */}
-                <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: `1px solid ${THEME.inkBorderSubtle}` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#c18847", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: THEME.gold, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       Product Gallery ({productForm.images?.length || 0} photo{(productForm.images?.length || 0) === 1 ? "" : "s"})
                     </span>
-                    <span style={{ fontSize: "10px", color: "#10b981", fontWeight: 600 }}>
+                    <span style={{ fontSize: "11px", color: THEME.greenText, fontWeight: 600 }}>
                       ✓ Storefront PDP Thumbnail Strip Ready
                     </span>
                   </div>
 
                   {(!productForm.images || productForm.images.length === 0) ? (
-                    <div style={{ padding: "16px", textAlign: "center", fontSize: "11.5px", color: "#64748b", background: "#14141a", borderRadius: "8px", border: "1px dashed rgba(255, 255, 255, 0.1)" }}>
+                    <div style={{ padding: "16px", textAlign: "center", fontSize: "11.5px", color: THEME.inkSubtle, background: "#ffffff", borderRadius: "8px", border: `1px dashed ${THEME.inkBorder}` }}>
                       No photos in gallery yet. Select from the library above or upload files.
                     </div>
                   ) : (
@@ -2958,15 +2991,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
                             style={{
                               position: "relative",
                               borderRadius: "8px",
-                              border: isPrimary ? "2px solid #c18847" : "1px solid rgba(255, 255, 255, 0.12)",
-                              background: "#14141a",
+                              border: isPrimary ? `2px solid ${THEME.gold}` : `1px solid ${THEME.inkBorder}`,
+                              background: "#ffffff",
                               padding: "6px",
                             }}
                           >
                             <img
                               src={imgUrl}
                               alt={`Gallery photo ${idx + 1}`}
-                              style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", background: "#222" }}
+                              style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", background: THEME.cream }}
                             />
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
                               <span
@@ -2975,8 +3008,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                   fontWeight: 700,
                                   padding: "2px 6px",
                                   borderRadius: "4px",
-                                  background: isPrimary ? "#c18847" : "rgba(255, 255, 255, 0.08)",
-                                  color: "#ffffff",
+                                  background: isPrimary ? THEME.ink : THEME.cream,
+                                  color: isPrimary ? THEME.goldLight : THEME.inkMuted,
                                 }}
                               >
                                 {isPrimary ? "★ Primary" : `#${idx + 1}`}
@@ -2988,11 +3021,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                     onClick={() => handleSetPrimaryImage(idx)}
                                     title="Make Primary Cover Photo"
                                     style={{
-                                      background: "rgba(193, 136, 71, 0.15)",
-                                      color: "#c18847",
+                                      background: THEME.cream,
+                                      color: THEME.ink,
                                       border: "none",
                                       borderRadius: "4px",
-                                      padding: "2px 5px",
+                                      padding: "2px 6px",
                                       fontSize: "9px",
                                       fontWeight: 600,
                                       cursor: "pointer",
@@ -3006,11 +3039,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                   onClick={() => handleRemoveImage(idx)}
                                   title="Remove photo"
                                   style={{
-                                    background: "rgba(239, 68, 68, 0.15)",
-                                    color: "#ef4444",
+                                    background: THEME.redBg,
+                                    color: THEME.redText,
                                     border: "none",
                                     borderRadius: "4px",
-                                    padding: "2px 5px",
+                                    padding: "2px 6px",
                                     cursor: "pointer",
                                     display: "flex",
                                     alignItems: "center",
@@ -3031,7 +3064,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
               {/* Description & Details */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
                     Detailed Story & Description
                   </label>
                   <textarea
@@ -3039,12 +3072,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     placeholder="Rich botanical description for customer PDP..."
                     value={productForm.description}
                     onChange={(e) => setProductForm((prev) => ({ ...prev, description: e.target.value }))}
-                    style={{ width: "100%", padding: "9px 12px", fontSize: "11.5px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "11.5px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
                     INCI Ingredients List
                   </label>
                   <textarea
@@ -3052,25 +3085,25 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     placeholder="e.g. Organic Camellia Seed Oil, Plant Squalane, Vitamin E..."
                     value={productForm.ingredients}
                     onChange={(e) => setProductForm((prev) => ({ ...prev, ingredients: e.target.value }))}
-                    style={{ width: "100%", padding: "9px 12px", fontSize: "11.5px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "11.5px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
                   />
                 </div>
               </div>
 
               {/* Submit / Cancel Buttons */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "18px" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: `1px solid ${THEME.inkBorderSubtle}`, paddingTop: "18px" }}>
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
                   style={{
-                    background: "transparent",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                    background: "#ffffff",
+                    border: `1px solid ${THEME.inkBorder}`,
                     borderRadius: "6px",
                     padding: "9px 20px",
                     fontSize: "12px",
                     fontWeight: 600,
                     cursor: "pointer",
-                    color: "#94a3b8",
+                    color: THEME.inkMuted,
                   }}
                 >
                   Cancel
@@ -3079,7 +3112,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                   type="submit"
                   disabled={isSubmittingProduct}
                   style={{
-                    background: "linear-gradient(135deg, #c18847 0%, #9a652a 100%)",
+                    background: THEME.ink,
                     color: "#ffffff",
                     border: "none",
                     borderRadius: "6px",
@@ -3087,7 +3120,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     fontSize: "12px",
                     fontWeight: 700,
                     cursor: "pointer",
-                    boxShadow: "0 4px 14px rgba(193, 136, 71, 0.35)",
+                    boxShadow: "0 4px 14px rgba(33, 19, 15, 0.2)",
                   }}
                 >
                   {isSubmittingProduct ? "Publishing Creation..." : "Publish Creation to Storefront"}
@@ -3098,15 +3131,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
         </div>
       )}
 
-      {/* ================= TAX INVOICE VIEWER & DOWNLOAD MODAL ================= */}
+      {/* ================= TAX INVOICE VIEWER & DOWNLOAD MODAL (STOREFRONT THEME) ================= */}
       {selectedInvoiceOrder && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 1100,
-            background: "rgba(0, 0, 0, 0.8)",
-            backdropFilter: "blur(8px)",
+            background: "rgba(33, 19, 15, 0.65)",
+            backdropFilter: "blur(6px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -3118,15 +3151,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
         >
           <div
             style={{
-              background: "#16161c",
-              border: "1px solid rgba(193, 136, 71, 0.3)",
+              background: "#ffffff",
+              border: `1px solid ${THEME.inkBorder}`,
               borderRadius: "14px",
               maxWidth: "850px",
               width: "100%",
               height: "90vh",
               display: "flex",
               flexDirection: "column",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.8)",
+              boxShadow: "0 25px 60px rgba(33, 19, 15, 0.3)",
               overflow: "hidden",
             }}
           >
@@ -3134,20 +3167,20 @@ export default function AdminView({ onBack }: AdminViewProps) {
             <div
               style={{
                 padding: "16px 24px",
-                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                borderBottom: `1px solid ${THEME.inkBorder}`,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                background: "#121216",
+                background: THEME.cream,
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <FileText size={18} style={{ color: "#c18847" }} />
+                <FileText size={18} style={{ color: THEME.gold }} />
                 <div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff" }}>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: THEME.ink }}>
                     OFFICIAL TAX INVOICE — {selectedInvoiceOrder.id}
                   </div>
-                  <div style={{ fontSize: "10.5px", color: "#94a3b8" }}>
+                  <div style={{ fontSize: "11px", color: THEME.inkMuted }}>
                     GSTIN 07AABCS1429B1Z8 · Indian GST Rule 48 Compliant
                   </div>
                 </div>
@@ -3161,12 +3194,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     printInvoiceHtml(html);
                   }}
                   style={{
-                    background: "rgba(255, 255, 255, 0.08)",
-                    border: "1px solid rgba(255, 255, 255, 0.15)",
-                    color: "#f8fafc",
+                    background: "#ffffff",
+                    border: `1px solid ${THEME.inkBorder}`,
+                    color: THEME.ink,
                     padding: "7px 14px",
                     borderRadius: "6px",
-                    fontSize: "11px",
+                    fontSize: "11.5px",
                     fontWeight: 600,
                     cursor: "pointer",
                     display: "flex",
@@ -3185,17 +3218,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     showNotice(`✓ Tax Invoice downloaded for ${selectedInvoiceOrder.id}`);
                   }}
                   style={{
-                    background: "linear-gradient(135deg, #c18847 0%, #a86b2b 100%)",
+                    background: THEME.ink,
                     border: "none",
                     color: "#ffffff",
                     padding: "7px 16px",
                     borderRadius: "6px",
-                    fontSize: "11px",
+                    fontSize: "11.5px",
                     fontWeight: 700,
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
+                    boxShadow: "0 4px 12px rgba(33, 19, 15, 0.15)",
                   }}
                 >
                   <Download size={13} /> Download Invoice
@@ -3206,7 +3240,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                   style={{
                     background: "transparent",
                     border: "none",
-                    color: "#94a3b8",
+                    color: THEME.inkMuted,
                     padding: "6px",
                     cursor: "pointer",
                   }}
@@ -3228,15 +3262,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
         </div>
       )}
 
-      {/* ================= ORDER DETAILS MODAL ================= */}
+      {/* ================= ORDER DETAILS MODAL (STOREFRONT THEME) ================= */}
       {selectedOrderDetails && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 1100,
-            background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(8px)",
+            background: "rgba(33, 19, 15, 0.65)",
+            backdropFilter: "blur(6px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -3248,29 +3282,30 @@ export default function AdminView({ onBack }: AdminViewProps) {
         >
           <div
             style={{
-              background: "#141418",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
+              background: "#ffffff",
+              border: `1px solid ${THEME.inkBorder}`,
               borderRadius: "14px",
               maxWidth: "600px",
               width: "100%",
               maxHeight: "85vh",
               overflowY: "auto",
               padding: "24px 28px",
-              color: "#f8fafc",
+              color: THEME.ink,
+              boxShadow: "0 25px 60px rgba(33, 19, 15, 0.25)",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", borderBottom: `1px solid ${THEME.inkBorder}`, paddingBottom: "14px" }}>
               <div>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "#c18847", letterSpacing: "0.1em" }}>
+                <span style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.15em", textTransform: "uppercase" }}>
                   ORDER DETAILS
                 </span>
-                <h3 style={{ margin: "2px 0 0", fontSize: "18px", color: "#ffffff" }}>
+                <h3 style={{ margin: "2px 0 0", fontSize: "20px", color: THEME.ink, fontFamily: THEME.fontSerif, fontWeight: 600 }}>
                   #{selectedOrderDetails.id}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedOrderDetails(null)}
-                style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
+                style={{ background: "transparent", border: "none", color: THEME.inkMuted, cursor: "pointer" }}
               >
                 <X size={18} />
               </button>
@@ -3278,27 +3313,27 @@ export default function AdminView({ onBack }: AdminViewProps) {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "14px", fontSize: "12px" }}>
               <div>
-                <b style={{ color: "#c18847" }}>Customer:</b> {selectedOrderDetails.client_name || selectedOrderDetails.customer_name} ({selectedOrderDetails.client_email || selectedOrderDetails.customer_email})
+                <b style={{ color: THEME.gold }}>Customer:</b> {selectedOrderDetails.client_name || selectedOrderDetails.customer_name} ({selectedOrderDetails.client_email || selectedOrderDetails.customer_email})
               </div>
               <div>
-                <b style={{ color: "#c18847" }}>Contact Phone:</b> {selectedOrderDetails.client_phone || selectedOrderDetails.customer_phone}
+                <b style={{ color: THEME.gold }}>Contact Phone:</b> {selectedOrderDetails.client_phone || selectedOrderDetails.customer_phone}
               </div>
               <div>
-                <b style={{ color: "#c18847" }}>Shipping Address:</b> {selectedOrderDetails.shipping_address}
+                <b style={{ color: THEME.gold }}>Shipping Address:</b> {selectedOrderDetails.shipping_address}
               </div>
               <div>
-                <b style={{ color: "#c18847" }}>Grand Total:</b> {selectedOrderDetails.total_amount || `₹${selectedOrderDetails.total_price}`} (Paid via {(selectedOrderDetails.payment_method || "UPI").toUpperCase()})
+                <b style={{ color: THEME.gold }}>Grand Total:</b> {selectedOrderDetails.total_amount || `₹${selectedOrderDetails.total_price}`} (Paid via {(selectedOrderDetails.payment_method || "UPI").toUpperCase()})
               </div>
               <div>
-                <b style={{ color: "#c18847" }}>Courier Tracking:</b> {selectedOrderDetails.tracking_number || "Awaiting dispatch assignment"}
+                <b style={{ color: THEME.gold }}>Courier Tracking:</b> {selectedOrderDetails.tracking_number || "Awaiting dispatch assignment"}
               </div>
 
-              <div style={{ marginTop: "10px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "14px" }}>
-                <b style={{ display: "block", marginBottom: "8px", color: "#94a3b8" }}>Items In Order:</b>
+              <div style={{ marginTop: "10px", borderTop: `1px solid ${THEME.inkBorderSubtle}`, paddingTop: "14px" }}>
+                <b style={{ display: "block", marginBottom: "8px", color: THEME.inkMuted }}>Items In Order:</b>
                 {parseItems(selectedOrderDetails.items).map((it, idx) => (
-                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
-                    <span>{it.quantity}x {it.name} ({it.shade || "Standard"})</span>
-                    <span style={{ fontWeight: 600 }}>₹{it.unitPrice}</span>
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
+                    <span style={{ color: THEME.ink }}>{it.quantity}x {it.name} ({it.shade || "Standard"})</span>
+                    <span style={{ fontWeight: 600, color: THEME.ink }}>₹{it.unitPrice}</span>
                   </div>
                 ))}
               </div>
@@ -3310,10 +3345,10 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     setSelectedOrderDetails(null);
                   }}
                   style={{
-                    background: "#c18847",
+                    background: THEME.ink,
                     color: "#ffffff",
                     border: "none",
-                    padding: "8px 16px",
+                    padding: "8px 18px",
                     borderRadius: "6px",
                     fontWeight: 700,
                     fontSize: "11.5px",
@@ -3321,6 +3356,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
+                    boxShadow: "0 4px 12px rgba(33, 19, 15, 0.15)",
                   }}
                 >
                   <FileText size={13} /> View Tax Invoice
