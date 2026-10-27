@@ -264,11 +264,18 @@ export default function AuthAccountView({
               ? new Date(d.created_at).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" })
               : "Recent Order";
 
+            const totalStr =
+              d.total_amount && d.total_amount !== "₹0"
+                ? d.total_amount
+                : d.total_price
+                ? `₹${Number(d.total_price).toLocaleString("en-IN")}`
+                : "₹1,099";
+
             return {
               id: d.id,
               date: createdDate,
               itemsCount: d.items_count || formattedItems.length || 1,
-              totalAmount: d.total_amount || (d.total_price ? `₹${Number(d.total_price).toLocaleString("en-IN")}` : "₹899"),
+              totalAmount: totalStr,
               status: d.status === "delivered" ? "delivered" : (d.status === "dispatched" ? "dispatched" : "processing"),
               trackingNumber: d.tracking_number || "Awaiting Dispatch Scan",
               eta: d.eta || (d.status === "delivered" ? "Delivered to Residence" : "Arriving in 2-3 Business Days"),
@@ -276,15 +283,44 @@ export default function AuthAccountView({
                 {
                   name: "Signature Collection Piece",
                   shade: "Haute Shade",
-                  price: d.total_amount || "₹899",
+                  price: totalStr,
                   image: FALLBACK_PRODUCT_IMAGE,
                 },
               ],
             };
           });
 
-          // Merge Supabase orders with local, prioritizing Supabase DB
+          // Check localStorage live cache for instant cross-tab sync
           const existingIds = new Set(mapped.map((m) => m.id));
+          try {
+            const rawLive = localStorage.getItem("sheaura_live_orders_v2");
+            if (rawLive) {
+              const liveList = JSON.parse(rawLive);
+              if (Array.isArray(liveList)) {
+                liveList.forEach((lo: any) => {
+                  const cEmail = (lo.customer_email || lo.client_email || "").toLowerCase();
+                  if (cEmail === userEmail.toLowerCase() && !existingIds.has(lo.id)) {
+                    existingIds.add(lo.id);
+                    mapped.unshift({
+                      id: lo.id,
+                      date: lo.created_at ? new Date(lo.created_at).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" }) : "Today",
+                      itemsCount: lo.items_count || 1,
+                      totalAmount: lo.total_amount && lo.total_amount !== "₹0" ? lo.total_amount : (lo.total_price ? `₹${Number(lo.total_price).toLocaleString("en-IN")}` : "₹1,099"),
+                      status: lo.status || "processing",
+                      trackingNumber: lo.tracking_number || "Awaiting Dispatch Scan",
+                      eta: lo.eta || "Arriving in 2-3 Business Days",
+                      items: Array.isArray(lo.items) ? lo.items.map((i: any) => ({
+                        name: i.name || "Creation",
+                        shade: i.shade || "Standard",
+                        price: `₹${Number(i.unitPrice || 1099).toLocaleString("en-IN")}`,
+                        image: i.image || FALLBACK_PRODUCT_IMAGE,
+                      })) : [],
+                    });
+                  }
+                });
+              }
+            }
+          } catch {}
           for (const loc of localOrders) {
             if (!existingIds.has(loc.id)) {
               mapped.push(loc);

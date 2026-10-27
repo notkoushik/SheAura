@@ -11153,6 +11153,140 @@ footer { background: #ecd7c1; }
   font-weight: bold;
 }
 
+/* Checkout Customer Authentication Banners */
+.checkout-auth-banner {
+  background: #fdfaf7;
+  border: 1.5px solid rgba(163, 106, 59, 0.3);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.auth-banner-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 240px;
+}
+
+.auth-banner-left h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #21130f;
+  letter-spacing: 0.02em;
+}
+
+.auth-banner-left p {
+  margin: 0;
+  font-size: 11.5px;
+  color: #765d50;
+  line-height: 1.4;
+}
+
+.auth-banner-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.auth-quick-btn {
+  background: #21130f;
+  color: #ffffff;
+  border: 1px solid #21130f;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.auth-quick-btn:hover {
+  background: #3b231c;
+}
+
+.auth-quick-btn.secondary {
+  background: #f4ece1;
+  color: #21130f;
+  border-color: rgba(42, 26, 20, 0.15);
+}
+
+.auth-quick-btn.secondary:hover {
+  background: #ede4d7;
+}
+
+.checkout-logged-in-banner {
+  background: #f0f7ef;
+  border: 1px solid rgba(45, 94, 53, 0.25);
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.logged-in-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #2d5e35;
+}
+
+.logged-in-meta b {
+  color: #1a4422;
+}
+
+.switch-account-link {
+  background: transparent;
+  border: none;
+  color: #8c766a;
+  text-decoration: underline;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.switch-account-link:hover {
+  color: #21130f;
+}
+
+.checkout-auth-inline-box {
+  background: #ffffff;
+  border: 1px solid rgba(42, 26, 20, 0.15);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(33, 19, 15, 0.06);
+}
+
+.checkout-auth-inline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.checkout-auth-inline-header h4 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #21130f;
+}
+
 /* Quick Promo Chips */
 .quick-promo-chips {
   display: flex;

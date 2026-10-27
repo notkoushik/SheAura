@@ -23,6 +23,8 @@ import {
   X,
   CreditCard,
   Tag,
+  Percent,
+  Award,
   Check,
   Trash2,
   Copy,
@@ -45,6 +47,15 @@ import {
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./lib/supabase";
 import { getAdminSession, clearAdminSession } from "./lib/auth";
+import {
+  getAllCoupons,
+  addAdminCoupon,
+  toggleCouponStatus,
+  deleteCoupon,
+  computeCouponRankings,
+  Coupon,
+  CouponRankingItem,
+} from "./lib/couponStore";
 import {
   normalizeCategory,
   CATEGORY_OPTIONS,
@@ -85,6 +96,8 @@ export interface AdminOrder {
   total_amount: string;
   subtotal?: number;
   discount?: number;
+  discount_code?: string;
+  discount_amount?: number;
   shipping_fee?: number;
   tax_amount?: number;
   total_price?: number;
@@ -267,7 +280,7 @@ const THEME = {
 
 export default function AdminView({ onBack }: AdminViewProps) {
   const [adminSession, setAdminSessionState] = useState(() => getAdminSession());
-  const [activeTab, setActiveTab] = useState<"overview" | "creations" | "inventory" | "orders" | "customers" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "creations" | "inventory" | "orders" | "coupons" | "customers" | "settings">("overview");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>(() => {
     const local = getLocalCustomProducts();
@@ -349,6 +362,92 @@ export default function AdminView({ onBack }: AdminViewProps) {
   const showNotice = (msg: string) => {
     setActionNotice(msg);
     setTimeout(() => setActionNotice(null), 4000);
+  };
+
+  // Coupons Management State
+  const [coupons, setCoupons] = useState<Coupon[]>(() => getAllCoupons());
+  const [isAddCouponModalOpen, setIsAddCouponModalOpen] = useState<boolean>(false);
+  const [newCouponForm, setNewCouponForm] = useState({
+    code: "",
+    description: "",
+    discountType: "percentage" as "percentage" | "fixed",
+    discountValue: 10,
+    minSubtotal: 1500,
+  });
+
+  const handleCreateCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCouponForm.code.trim()) {
+      showNotice("⚠️ Please enter a voucher code.");
+      return;
+    }
+    const created = addAdminCoupon({
+      code: newCouponForm.code,
+      description: newCouponForm.description,
+      discountType: newCouponForm.discountType,
+      discountValue: Number(newCouponForm.discountValue) || 10,
+      minSubtotal: Number(newCouponForm.minSubtotal) || 0,
+    });
+    setCoupons(getAllCoupons());
+    setIsAddCouponModalOpen(false);
+    setNewCouponForm({
+      code: "",
+      description: "",
+      discountType: "percentage",
+      discountValue: 10,
+      minSubtotal: 1500,
+    });
+    showNotice(`✨ Privilege voucher "${created.code}" created and activated.`);
+  };
+
+  const handleToggleCoupon = (code: string) => {
+    const updated = toggleCouponStatus(code);
+    setCoupons(getAllCoupons());
+    if (updated) {
+      if (updated.isActive) {
+        showNotice(`✅ Voucher "${updated.code}" reactivated for checkout.`);
+      } else {
+        showNotice(`🛑 Voucher "${updated.code}" DISMANTLED. Customer checkout blocked.`);
+      }
+    }
+  };
+
+  const handleDeleteCoupon = (code: string) => {
+    if (window.confirm(`Are you sure you wish to permanently decommission voucher "${code}"?`)) {
+      deleteCoupon(code);
+      setCoupons(getAllCoupons());
+      showNotice(`🗑️ Voucher "${code}" deleted permanently.`);
+    }
+  };
+
+  // Format order total cleanly without showing ₹0 if total_price exists
+  const formatOrderTotal = (o: AdminOrder): string => {
+    const totalNum =
+      typeof o.total_price === "number" && o.total_price > 0
+        ? o.total_price
+        : parseInt(String(o.total_amount || "").replace(/[^0-9]/g, ""), 10) || 0;
+    if (totalNum > 0) return `₹${totalNum.toLocaleString("en-IN")}`;
+    if (o.total_amount && o.total_amount !== "₹0") return o.total_amount;
+    return `₹${o.total_price || 0}`;
+  };
+
+  // Safe payment badge mapping for Admin tables
+  const getPaymentStatusBadge = (o: AdminOrder) => {
+    const raw = (o.payment_status || "").toLowerCase().trim();
+    const method = (o.payment_method || "").toLowerCase().trim();
+    if (raw === "paid" || raw === "captured" || raw === "completed" || raw === "settled" || raw === "confirmed") {
+      return { label: "PAID", bg: THEME.greenBg, text: THEME.greenText };
+    }
+    if (raw === "pending_cod" || raw === "cod" || method.includes("cod") || method.includes("cash")) {
+      return { label: "COD PENDING", bg: THEME.amberBg, text: THEME.amberText };
+    }
+    if (raw === "awaiting_payment" || raw === "awaiting" || raw === "processing") {
+      return { label: "PROCESSING", bg: THEME.blueBg, text: THEME.blueText };
+    }
+    if (raw === "failed" || raw === "cancelled") {
+      return { label: "FAILED", bg: THEME.redBg, text: THEME.redText };
+    }
+    return { label: "PAID", bg: THEME.greenBg, text: THEME.greenText };
   };
 
   // Load orders from Supabase + Local Shared Cache
@@ -528,7 +627,13 @@ export default function AdminView({ onBack }: AdminViewProps) {
     };
     window.addEventListener("sheaura:catalog-updated", handleCatalogUpdated);
 
-    // 3. Supabase Realtime Stream for Orders (if online)
+    // 3. Listen for coupon registry updates
+    const handleCouponsUpdated = () => {
+      setCoupons(getAllCoupons());
+    };
+    window.addEventListener("sheaura:coupons-updated", handleCouponsUpdated);
+
+    // 4. Supabase Realtime Stream for Orders (if online)
     let orderSubscription: any = null;
     if (isSupabaseConfigured) {
       try {
@@ -549,6 +654,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
     return () => {
       window.removeEventListener("sheaura:order-created", handleOrderCreated);
       window.removeEventListener("sheaura:catalog-updated", handleCatalogUpdated);
+      window.removeEventListener("sheaura:coupons-updated", handleCouponsUpdated);
       clearInterval(pollTimer);
       if (orderSubscription) {
         supabase.removeChannel(orderSubscription);
@@ -1064,7 +1170,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
   // Computed Metrics
   const totalRevenue = useMemo(() => {
     return orders.reduce((acc, o) => {
-      const val = typeof o.total_price === "number" ? o.total_price : parseFloat(String(o.total_amount).replace(/[^0-9.]/g, "")) || 0;
+      const val = typeof o.total_price === "number" && o.total_price > 0 ? o.total_price : parseFloat(String(o.total_amount).replace(/[^0-9.]/g, "")) || 0;
       return acc + val;
     }, 0);
   }, [orders]);
@@ -1077,14 +1183,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
     return products.filter((p) => (p.stock_quantity ?? 50) < 15).length;
   }, [products]);
 
+  const couponRankings = useMemo(() => {
+    return computeCouponRankings(orders);
+  }, [orders, coupons]);
+
   const customersList = useMemo(() => {
     const map = new Map<string, CustomerSummary>();
     orders.forEach((o) => {
-      const name = o.client_name || o.customer_name || "Maison Member";
-      const email = o.client_email || o.customer_email || "concierge@sheaura.com";
-      const phone = o.client_phone || o.customer_phone || "+91 98200 11223";
+      const name = o.customer_name || o.client_name || "Maison Member";
+      const email = o.customer_email || o.client_email || "concierge@sheaura.com";
+      const phone = o.customer_phone || o.client_phone || "+91 98200 11223";
       const city = o.shipping_address?.split(",")[1]?.trim() || "India";
-      const amt = typeof o.total_price === "number" ? o.total_price : parseFloat(String(o.total_amount).replace(/[^0-9.]/g, "")) || 0;
+      const amt = typeof o.total_price === "number" && o.total_price > 0 ? o.total_price : parseFloat(String(o.total_amount).replace(/[^0-9.]/g, "")) || 0;
 
       if (!map.has(email)) {
         map.set(email, {
@@ -1447,6 +1557,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
               { key: "creations", label: "Creations", icon: Sparkles },
               { key: "inventory", label: "Inventory", icon: Boxes },
               { key: "orders", label: "Orders & Dispatch", icon: Truck },
+              { key: "coupons", label: "Privileges & Coupons", icon: Tag },
               { key: "customers", label: "Customers", icon: User },
               { key: "settings", label: "Settings", icon: Settings },
             ].map((item) => {
@@ -1682,12 +1793,21 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         </thead>
                         <tbody>
                           {orders.slice(0, 5).map((o) => {
-                            const isPaid = (o.payment_status || "paid").toLowerCase() === "paid";
+                            const { label: payLabel, bg: payBg, text: payText } = getPaymentStatusBadge(o);
+                            const formattedTotal = formatOrderTotal(o);
+                            const custName = o.customer_name || o.client_name || "Maison Guest";
                             return (
                               <tr key={o.id} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
                                 <td style={{ padding: "10px 12px", fontWeight: 600, color: THEME.gold }}>{o.id}</td>
-                                <td style={{ padding: "10px 12px", color: THEME.ink }}>{o.client_name || o.customer_name}</td>
-                                <td style={{ padding: "10px 12px", fontWeight: 700, color: THEME.ink }}>{o.total_amount || `₹${o.total_price}`}</td>
+                                <td style={{ padding: "10px 12px", color: THEME.ink }}>
+                                  <div>{custName}</div>
+                                  {o.discount_code && (
+                                    <span style={{ fontSize: "9px", color: THEME.gold, fontWeight: 700 }}>
+                                      🎟️ {o.discount_code}
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{ padding: "10px 12px", fontWeight: 700, color: THEME.ink }}>{formattedTotal}</td>
                                 <td style={{ padding: "10px 12px" }}>
                                   <span
                                     style={{
@@ -1696,11 +1816,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                       borderRadius: "999px",
                                       fontSize: "10px",
                                       fontWeight: 700,
-                                      background: isPaid ? THEME.greenBg : THEME.redBg,
-                                      color: isPaid ? THEME.greenText : THEME.redText,
+                                      background: payBg,
+                                      color: payText,
                                     }}
                                   >
-                                    {isPaid ? "PAID" : "FAILED"}
+                                    {payLabel}
                                   </span>
                                 </td>
                                 <td style={{ padding: "10px 12px" }}>
@@ -1899,19 +2019,29 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     <tbody>
                       {filteredOrders.map((o) => {
                         const items = parseItems(o.items);
-                        const isPaid = (o.payment_status || "paid").toLowerCase() === "paid";
+                        const { label: payLabel, bg: payBg, text: payText } = getPaymentStatusBadge(o);
+                        const formattedTotal = formatOrderTotal(o);
+                        const custName = o.customer_name || o.client_name || "Maison Guest";
+                        const custEmail = o.customer_email || o.client_email || "guest@sheaura.com";
                         return (
                           <tr key={o.id} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
                             <td style={{ padding: "12px", fontWeight: 600, color: THEME.gold }}>{o.id}</td>
                             <td style={{ padding: "12px" }}>
-                              <div style={{ fontWeight: 600, color: THEME.ink }}>{o.client_name || o.customer_name}</div>
-                              <div style={{ fontSize: "10px", color: THEME.inkSubtle }}>{o.client_email || o.customer_email}</div>
+                              <div style={{ fontWeight: 600, color: THEME.ink }}>{custName}</div>
+                              <div style={{ fontSize: "10px", color: THEME.inkSubtle }}>{custEmail}</div>
+                              {o.discount_code && (
+                                <div style={{ marginTop: "3px" }}>
+                                  <span style={{ fontSize: "9.5px", color: THEME.gold, fontWeight: 700, background: THEME.cream, border: `1px solid ${THEME.inkBorderSubtle}`, padding: "1px 6px", borderRadius: "3px" }}>
+                                    🎟️ {o.discount_code}
+                                  </span>
+                                </div>
+                              )}
                             </td>
                             <td style={{ padding: "12px", color: THEME.inkMuted }}>
                               {new Date(o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
                             </td>
                             <td style={{ padding: "12px", color: THEME.ink }}>{items.length || o.items_count || 1}</td>
-                            <td style={{ padding: "12px", fontWeight: 700, color: THEME.ink }}>{o.total_amount || `₹${o.total_price}`}</td>
+                            <td style={{ padding: "12px", fontWeight: 700, color: THEME.ink }}>{formattedTotal}</td>
                             <td style={{ padding: "12px" }}>
                               <span
                                 style={{
@@ -1920,11 +2050,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                   borderRadius: "999px",
                                   fontSize: "10px",
                                   fontWeight: 700,
-                                  background: isPaid ? THEME.greenBg : THEME.redBg,
-                                  color: isPaid ? THEME.greenText : THEME.redText,
+                                  background: payBg,
+                                  color: payText,
                                 }}
                               >
-                                {isPaid ? "PAID" : "FAILED"}
+                                {payLabel}
                               </span>
                             </td>
                             <td style={{ padding: "12px" }}>
@@ -2365,6 +2495,10 @@ export default function AdminView({ onBack }: AdminViewProps) {
                   <tbody>
                     {filteredOrders.map((o) => {
                       const items = parseItems(o.items);
+                      const { label: payLabel, bg: payBg, text: payText } = getPaymentStatusBadge(o);
+                      const formattedTotal = formatOrderTotal(o);
+                      const custName = o.customer_name || o.client_name || "Maison Guest";
+                      const custEmail = o.customer_email || o.client_email || "guest@sheaura.com";
                       return (
                         <tr key={o.id} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
                           <td style={{ padding: "14px 16px", fontWeight: 700, color: THEME.gold }}>
@@ -2374,9 +2508,16 @@ export default function AdminView({ onBack }: AdminViewProps) {
                             </div>
                           </td>
                           <td style={{ padding: "14px 16px" }}>
-                            <div style={{ fontWeight: 600, color: THEME.ink }}>{o.client_name || o.customer_name}</div>
-                            <div style={{ fontSize: "10.5px", color: THEME.inkMuted }}>{o.client_email || o.customer_email}</div>
+                            <div style={{ fontWeight: 600, color: THEME.ink }}>{custName}</div>
+                            <div style={{ fontSize: "10.5px", color: THEME.inkMuted }}>{custEmail}</div>
                             <div style={{ fontSize: "9.5px", color: THEME.inkSubtle }}>{o.shipping_address}</div>
+                            {o.discount_code && (
+                              <div style={{ marginTop: "3px" }}>
+                                <span style={{ fontSize: "9.5px", color: THEME.gold, fontWeight: 700, background: THEME.cream, border: `1px solid ${THEME.inkBorderSubtle}`, padding: "1px 6px", borderRadius: "3px" }}>
+                                  🎟️ {o.discount_code}
+                                </span>
+                              </div>
+                            )}
                           </td>
                           <td style={{ padding: "14px 16px" }}>
                             {items.length > 0 ? (
@@ -2388,8 +2529,23 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               <span style={{ color: THEME.ink }}>{o.items_count || 1} pieces</span>
                             )}
                           </td>
-                          <td style={{ padding: "14px 16px", fontWeight: 700, color: THEME.ink }}>
-                            {o.total_amount || `₹${o.total_price}`}
+                          <td style={{ padding: "14px 16px" }}>
+                            <div style={{ fontWeight: 700, color: THEME.ink }}>{formattedTotal}</div>
+                            <div style={{ marginTop: "4px" }}>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "2px 6px",
+                                  borderRadius: "999px",
+                                  fontSize: "9.5px",
+                                  fontWeight: 700,
+                                  background: payBg,
+                                  color: payText,
+                                }}
+                              >
+                                {payLabel}
+                              </span>
+                            </div>
                           </td>
                           <td style={{ padding: "14px 16px" }}>
                             <select
@@ -2440,6 +2596,21 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               >
                                 <FileText size={12} /> Tax Invoice
                               </button>
+                              <button
+                                onClick={() => setSelectedOrderDetails(o)}
+                                style={{
+                                  background: "#ffffff",
+                                  border: `1px solid ${THEME.inkBorder}`,
+                                  color: THEME.inkMuted,
+                                  padding: "5px 10px",
+                                  borderRadius: "4px",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                Details
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -2451,7 +2622,276 @@ export default function AdminView({ onBack }: AdminViewProps) {
             </div>
           )}
 
-          {/* ================= TAB 5: CUSTOMERS DIRECTORY (STOREFRONT THEME) ================= */}
+          {/* ================= TAB 5: PRIVILEGES & COUPONS REGISTRY ================= */}
+          {activeTab === "coupons" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+                <div>
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
+                    STUDIO DIRECTOR CONSOLE
+                  </div>
+                  <h1 style={{ fontFamily: THEME.fontSerif, fontSize: "32px", fontWeight: 600, margin: "4px 0 0", color: THEME.ink }}>
+                    PRIVILEGES & COUPON REGISTRY
+                  </h1>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: THEME.inkMuted }}>
+                    Curate exclusive VIP discount vouchers, regulate privileges, dismantle codes in real-time, and monitor live performance rankings.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => setIsAddCouponModalOpen(true)}
+                  style={{
+                    background: THEME.ink,
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "9px 18px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxShadow: "0 4px 12px rgba(33, 19, 15, 0.15)",
+                  }}
+                >
+                  <Plus size={15} /> + Create New Privilege
+                </button>
+              </div>
+
+              {/* Top 4 KPI Metrics */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: THEME.inkSubtle, letterSpacing: "0.06em", textTransform: "uppercase" }}>Active Privileges</span>
+                    <Tag size={16} style={{ color: THEME.greenText }} />
+                  </div>
+                  <div style={{ fontSize: "28px", fontWeight: 700, color: THEME.ink, fontFamily: THEME.fontSerif, margin: "6px 0 2px" }}>
+                    {coupons.filter((c) => c.isActive).length}
+                  </div>
+                  <div style={{ fontSize: "11px", color: THEME.greenText }}>
+                    ● Live & redeemable at checkout
+                  </div>
+                </div>
+
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: THEME.inkSubtle, letterSpacing: "0.06em", textTransform: "uppercase" }}>Dismantled Codes</span>
+                    <AlertTriangle size={16} style={{ color: THEME.redText }} />
+                  </div>
+                  <div style={{ fontSize: "28px", fontWeight: 700, color: THEME.ink, fontFamily: THEME.fontSerif, margin: "6px 0 2px" }}>
+                    {coupons.filter((c) => !c.isActive).length}
+                  </div>
+                  <div style={{ fontSize: "11px", color: THEME.redText }}>
+                    ○ Blocked from customer use
+                  </div>
+                </div>
+
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: THEME.inkSubtle, letterSpacing: "0.06em", textTransform: "uppercase" }}>#1 Top Used Voucher</span>
+                    <Award size={16} style={{ color: THEME.gold }} />
+                  </div>
+                  <div style={{ fontSize: "24px", fontWeight: 700, color: THEME.gold, fontFamily: THEME.fontSerif, margin: "8px 0 2px", letterSpacing: "0.04em" }}>
+                    {couponRankings[0]?.code || "NONE"}
+                  </div>
+                  <div style={{ fontSize: "11px", color: THEME.inkMuted }}>
+                    {couponRankings[0] ? `${couponRankings[0].timesUsed} redemptions (₹${couponRankings[0].revenueGenerated.toLocaleString("en-IN")})` : "Awaiting first order"}
+                  </div>
+                </div>
+
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: THEME.inkSubtle, letterSpacing: "0.06em", textTransform: "uppercase" }}>Total Savings Granted</span>
+                    <TrendingUp size={16} style={{ color: THEME.gold }} />
+                  </div>
+                  <div style={{ fontSize: "28px", fontWeight: 700, color: THEME.ink, fontFamily: THEME.fontSerif, margin: "6px 0 2px" }}>
+                    ₹ {couponRankings.reduce((sum, r) => sum + r.totalDiscountGiven, 0).toLocaleString("en-IN")}
+                  </div>
+                  <div style={{ fontSize: "11px", color: THEME.inkMuted }}>
+                    Across all atelier transactions
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance Leaderboard & Management Table */}
+              <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", overflow: "hidden", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                <div style={{ padding: "16px 20px", borderBottom: `1px solid ${THEME.inkBorder}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: THEME.creamLight }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink }}>
+                      Privilege Leaderboard & Access Controls
+                    </h3>
+                    <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: THEME.inkMuted }}>
+                      Ranked by customer utilization and total revenue attribution. Dismantling a code instantly stops customers from applying it.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
+                    <thead>
+                      <tr style={{ color: THEME.gold, borderBottom: `1px solid ${THEME.inkBorder}`, background: THEME.cream }}>
+                        <th style={{ padding: "12px 16px", fontWeight: 700, width: "60px" }}>RANK</th>
+                        <th style={{ padding: "12px 16px", fontWeight: 700 }}>VOUCHER CODE</th>
+                        <th style={{ padding: "12px 16px", fontWeight: 700 }}>BENEFIT & PRIVILEGE</th>
+                        <th style={{ padding: "12px 16px", fontWeight: 700 }}>MIN ORDER</th>
+                        <th style={{ padding: "12px 16px", fontWeight: 700 }}>TIMES USED</th>
+                        <th style={{ padding: "12px 16px", fontWeight: 700 }}>REVENUE DRIVEN</th>
+                        <th style={{ padding: "12px 16px", fontWeight: 700 }}>STATUS</th>
+                        <th style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700 }}>MANAGEMENT ACTIONS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {couponRankings.map((item) => {
+                        const isRank1 = item.rank === 1 && item.timesUsed > 0;
+                        return (
+                          <tr key={item.code} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}`, background: !item.isActive ? "rgba(250, 232, 232, 0.3)" : undefined }}>
+                            <td style={{ padding: "14px 16px" }}>
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  width: "26px",
+                                  height: "26px",
+                                  borderRadius: "50%",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  background: isRank1 ? THEME.gold : item.rank <= 3 ? THEME.cream : "#f0f0f0",
+                                  color: isRank1 ? "#ffffff" : THEME.ink,
+                                }}
+                              >
+                                #{item.rank}
+                              </span>
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <span
+                                  style={{
+                                    fontFamily: "monospace",
+                                    fontSize: "12px",
+                                    fontWeight: 700,
+                                    letterSpacing: "0.08em",
+                                    padding: "3px 8px",
+                                    borderRadius: "4px",
+                                    background: THEME.cream,
+                                    border: `1px solid ${THEME.inkBorder}`,
+                                    color: THEME.ink,
+                                  }}
+                                >
+                                  {item.code}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard?.writeText(item.code);
+                                    showNotice(`Copied code "${item.code}" to clipboard.`);
+                                  }}
+                                  title="Copy Code"
+                                  style={{ background: "transparent", border: "none", color: THEME.inkSubtle, cursor: "pointer", padding: "2px" }}
+                                >
+                                  <Copy size={13} />
+                                </button>
+                              </div>
+                              <div style={{ fontSize: "10.5px", color: THEME.inkSubtle, marginTop: "2px" }}>{item.description}</div>
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              <span style={{ fontWeight: 600, color: THEME.ink }}>
+                                {item.discountType === "percentage"
+                                  ? `${Math.round(item.discountValue * 100)}% DISCOUNT`
+                                  : `₹${item.discountValue.toLocaleString("en-IN")} FLAT OFF`}
+                              </span>
+                            </td>
+                            <td style={{ padding: "14px 16px", color: THEME.inkMuted }}>
+                              {item.minSubtotal > 0 ? `₹${item.minSubtotal.toLocaleString("en-IN")}` : "No minimum"}
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              <span style={{ fontWeight: 700, color: THEME.ink, fontSize: "12px" }}>
+                                {item.timesUsed} {item.timesUsed === 1 ? "order" : "orders"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "14px 16px", fontWeight: 700, color: THEME.gold }}>
+                              ₹{item.revenueGenerated.toLocaleString("en-IN")}
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              {item.isActive ? (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    padding: "3px 8px",
+                                    borderRadius: "999px",
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    background: THEME.greenBg,
+                                    color: THEME.greenText,
+                                  }}
+                                >
+                                  ● ACTIVE
+                                </span>
+                              ) : (
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    padding: "3px 8px",
+                                    borderRadius: "999px",
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    background: THEME.redBg,
+                                    color: THEME.redText,
+                                  }}
+                                >
+                                  ○ DISMANTLED
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                              <div style={{ display: "inline-flex", gap: "6px" }}>
+                                <button
+                                  onClick={() => handleToggleCoupon(item.code)}
+                                  style={{
+                                    background: item.isActive ? THEME.amberBg : THEME.greenBg,
+                                    color: item.isActive ? THEME.amberText : THEME.greenText,
+                                    border: `1px solid ${item.isActive ? "rgba(138, 87, 18, 0.3)" : "rgba(45, 94, 53, 0.3)"}`,
+                                    padding: "5px 10px",
+                                    borderRadius: "4px",
+                                    fontSize: "10.5px",
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  {item.isActive ? "Dismantle" : "Reactivate"}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCoupon(item.code)}
+                                  style={{
+                                    background: "transparent",
+                                    color: THEME.redText,
+                                    border: `1px solid ${THEME.redBg}`,
+                                    padding: "5px 8px",
+                                    borderRadius: "4px",
+                                    fontSize: "10.5px",
+                                    cursor: "pointer",
+                                  }}
+                                  title="Decommission Voucher"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 6: CUSTOMERS DIRECTORY (STOREFRONT THEME) ================= */}
           {activeTab === "customers" && (
             <div>
               <div style={{ marginBottom: "20px" }}>
@@ -3262,8 +3702,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
         </div>
       )}
 
-      {/* ================= ORDER DETAILS MODAL (STOREFRONT THEME) ================= */}
-      {selectedOrderDetails && (
+      {/* ================= ADD NEW PRIVILEGE / COUPON MODAL ================= */}
+      {isAddCouponModalOpen && (
         <div
           style={{
             position: "fixed",
@@ -3277,7 +3717,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
             padding: "20px",
           }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedOrderDetails(null);
+            if (e.target === e.currentTarget) setIsAddCouponModalOpen(false);
           }}
         >
           <div
@@ -3285,87 +3725,477 @@ export default function AdminView({ onBack }: AdminViewProps) {
               background: "#ffffff",
               border: `1px solid ${THEME.inkBorder}`,
               borderRadius: "14px",
-              maxWidth: "600px",
+              maxWidth: "520px",
               width: "100%",
-              maxHeight: "85vh",
-              overflowY: "auto",
-              padding: "24px 28px",
+              padding: "28px",
               color: THEME.ink,
               boxShadow: "0 25px 60px rgba(33, 19, 15, 0.25)",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", borderBottom: `1px solid ${THEME.inkBorder}`, paddingBottom: "14px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", borderBottom: `1px solid ${THEME.inkBorder}`, paddingBottom: "14px" }}>
               <div>
-                <span style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.15em", textTransform: "uppercase" }}>
-                  ORDER DETAILS
+                <span style={{ fontSize: "10px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.15em", textTransform: "uppercase" }}>
+                  PRIVILEGE CURATION
                 </span>
                 <h3 style={{ margin: "2px 0 0", fontSize: "20px", color: THEME.ink, fontFamily: THEME.fontSerif, fontWeight: 600 }}>
-                  #{selectedOrderDetails.id}
+                  Create New Promotional Code
                 </h3>
               </div>
               <button
-                onClick={() => setSelectedOrderDetails(null)}
+                onClick={() => setIsAddCouponModalOpen(false)}
                 style={{ background: "transparent", border: "none", color: THEME.inkMuted, cursor: "pointer" }}
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px", fontSize: "12px" }}>
+            <form onSubmit={handleCreateCoupon} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div>
-                <b style={{ color: THEME.gold }}>Customer:</b> {selectedOrderDetails.client_name || selectedOrderDetails.customer_name} ({selectedOrderDetails.client_email || selectedOrderDetails.customer_email})
-              </div>
-              <div>
-                <b style={{ color: THEME.gold }}>Contact Phone:</b> {selectedOrderDetails.client_phone || selectedOrderDetails.customer_phone}
-              </div>
-              <div>
-                <b style={{ color: THEME.gold }}>Shipping Address:</b> {selectedOrderDetails.shipping_address}
-              </div>
-              <div>
-                <b style={{ color: THEME.gold }}>Grand Total:</b> {selectedOrderDetails.total_amount || `₹${selectedOrderDetails.total_price}`} (Paid via {(selectedOrderDetails.payment_method || "UPI").toUpperCase()})
-              </div>
-              <div>
-                <b style={{ color: THEME.gold }}>Courier Tracking:</b> {selectedOrderDetails.tracking_number || "Awaiting dispatch assignment"}
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                  Voucher Code *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. FESTIVE20, VIPGIFT, DIWALI500"
+                  value={newCouponForm.code}
+                  onChange={(e) => setNewCouponForm((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
+                  style={{ width: "100%", padding: "10px 12px", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                />
               </div>
 
-              <div style={{ marginTop: "10px", borderTop: `1px solid ${THEME.inkBorderSubtle}`, paddingTop: "14px" }}>
-                <b style={{ display: "block", marginBottom: "8px", color: THEME.inkMuted }}>Items In Order:</b>
-                {parseItems(selectedOrderDetails.items).map((it, idx) => (
-                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
-                    <span style={{ color: THEME.ink }}>{it.quantity}x {it.name} ({it.shade || "Standard"})</span>
-                    <span style={{ fontWeight: 600, color: THEME.ink }}>₹{it.unitPrice}</span>
-                  </div>
-                ))}
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                  Benefit Description *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 20% Festive Luxury Discount on all Wardrobes"
+                  value={newCouponForm.description}
+                  onChange={(e) => setNewCouponForm((prev) => ({ ...prev, description: e.target.value }))}
+                  style={{ width: "100%", padding: "10px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                />
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "14px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                    Discount Type *
+                  </label>
+                  <select
+                    value={newCouponForm.discountType}
+                    onChange={(e) => setNewCouponForm((prev) => ({ ...prev, discountType: e.target.value as any }))}
+                    style={{ width: "100%", padding: "10px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                  >
+                    <option value="percentage">Percentage Off (%)</option>
+                    <option value="fixed">Flat Amount Off (₹ INR)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                    {newCouponForm.discountType === "percentage" ? "Percentage Rate (e.g. 15 for 15%) *" : "Flat Rupee Discount (₹) *"}
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    max={newCouponForm.discountType === "percentage" ? 90 : 50000}
+                    value={newCouponForm.discountValue}
+                    onChange={(e) => setNewCouponForm((prev) => ({ ...prev, discountValue: Number(e.target.value) }))}
+                    style={{ width: "100%", padding: "10px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                  Minimum Order Bag Subtotal (INR ₹)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  placeholder="0 for no minimum threshold"
+                  value={newCouponForm.minSubtotal}
+                  onChange={(e) => setNewCouponForm((prev) => ({ ...prev, minSubtotal: Number(e.target.value) }))}
+                  style={{ width: "100%", padding: "10px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                />
+                <div style={{ fontSize: "10.5px", color: THEME.inkSubtle, marginTop: "4px" }}>
+                  Clients will be notified to meet this threshold before checkout unlocks the discount.
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px", borderTop: `1px solid ${THEME.inkBorderSubtle}`, paddingTop: "16px" }}>
                 <button
-                  onClick={() => {
-                    setSelectedInvoiceOrder(selectedOrderDetails);
-                    setSelectedOrderDetails(null);
-                  }}
-                  style={{
-                    background: THEME.ink,
-                    color: "#ffffff",
-                    border: "none",
-                    padding: "8px 18px",
-                    borderRadius: "6px",
-                    fontWeight: 700,
-                    fontSize: "11.5px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    boxShadow: "0 4px 12px rgba(33, 19, 15, 0.15)",
-                  }}
+                  type="button"
+                  onClick={() => setIsAddCouponModalOpen(false)}
+                  style={{ background: THEME.cream, border: `1px solid ${THEME.inkBorder}`, padding: "9px 16px", borderRadius: "6px", fontSize: "12px", color: THEME.ink, cursor: "pointer" }}
                 >
-                  <FileText size={13} /> View Tax Invoice
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ background: THEME.ink, color: "#ffffff", border: "none", padding: "9px 20px", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  <Check size={14} /> Save & Activate Privilege
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}
+
+      {/* ================= ORDER DETAILS DOSSIER MODAL (STOREFRONT THEME) ================= */}
+      {selectedOrderDetails && (() => {
+        const o = selectedOrderDetails;
+        const items = parseItems(o.items);
+        const { label: payLabel, bg: payBg, text: payText } = getPaymentStatusBadge(o);
+        const formattedTotal = formatOrderTotal(o);
+        const custName = o.customer_name || o.client_name || "Maison Guest";
+        const custEmail = o.customer_email || o.client_email || "guest@sheaura.com";
+        const custPhone = o.customer_phone || o.client_phone || "+91 98200 11223";
+
+        // Calculate itemized subtotal
+        const calculatedSubtotal = items.reduce((acc, it) => acc + (it.unitPrice * (it.quantity || 1)), 0);
+        const subtotal = o.subtotal && o.subtotal > 0 ? o.subtotal : calculatedSubtotal > 0 ? calculatedSubtotal : (o.total_price || 0);
+        const discountAmount = o.discount_amount || o.discount || 0;
+
+        return (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 1100,
+              background: "rgba(33, 19, 15, 0.7)",
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "20px",
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedOrderDetails(null);
+            }}
+          >
+            <div
+              style={{
+                background: "#ffffff",
+                border: `1px solid ${THEME.inkBorder}`,
+                borderRadius: "16px",
+                maxWidth: "760px",
+                width: "100%",
+                maxHeight: "90vh",
+                overflowY: "auto",
+                padding: "28px 32px",
+                color: THEME.ink,
+                boxShadow: "0 25px 70px rgba(33, 19, 15, 0.3)",
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", borderBottom: `1px solid ${THEME.inkBorder}`, paddingBottom: "16px" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.15em", textTransform: "uppercase" }}>
+                      CLIENT ORDER DOSSIER
+                    </span>
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "999px",
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        background: payBg,
+                        color: payText,
+                      }}
+                    >
+                      {payLabel}
+                    </span>
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "999px",
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        background:
+                          o.status === "delivered"
+                            ? THEME.greenBg
+                            : o.status === "dispatched"
+                            ? THEME.amberBg
+                            : THEME.blueBg,
+                        color:
+                          o.status === "delivered"
+                            ? THEME.greenText
+                            : o.status === "dispatched"
+                            ? THEME.amberText
+                            : THEME.blueText,
+                      }}
+                    >
+                      {o.status.toUpperCase()}
+                    </span>
+                    {o.discount_code && (
+                      <span
+                        style={{
+                          padding: "2px 8px",
+                          borderRadius: "999px",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          background: THEME.cream,
+                          border: `1px solid ${THEME.inkBorderSubtle}`,
+                          color: THEME.gold,
+                        }}
+                      >
+                        🎟️ {o.discount_code}
+                      </span>
+                    )}
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: "24px", color: THEME.ink, fontFamily: THEME.fontSerif, fontWeight: 600 }}>
+                    #{o.id}
+                  </h3>
+                  <div style={{ fontSize: "11px", color: THEME.inkMuted, marginTop: "2px" }}>
+                    Placed on {new Date(o.created_at).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedOrderDetails(null)}
+                  style={{ background: "transparent", border: "none", color: THEME.inkMuted, cursor: "pointer", padding: "4px" }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* 4 Informational Cards Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "22px" }}>
+                {/* 1. Customer Profile */}
+                <div style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "14px 16px" }}>
+                  <div style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <User size={13} /> VIP Client Profile
+                  </div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: THEME.ink }}>{custName}</div>
+                  <div style={{ fontSize: "11.5px", color: THEME.inkMuted, marginTop: "2px" }}>{custEmail}</div>
+                  <div style={{ fontSize: "11.5px", color: THEME.inkSubtle, marginTop: "2px" }}>{custPhone}</div>
+                  <div style={{ marginTop: "6px" }}>
+                    <span style={{ fontSize: "9.5px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", background: THEME.cream, color: THEME.ink, border: `1px solid ${THEME.inkBorderSubtle}` }}>
+                      Verified VIP Member
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. White-Glove Dispatch */}
+                <div style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "14px 16px" }}>
+                  <div style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Truck size={13} /> White-Glove Dispatch
+                  </div>
+                  <div style={{ fontSize: "12px", color: THEME.ink, lineHeight: 1.45 }}>{o.shipping_address}</div>
+                  <div style={{ fontSize: "11px", color: THEME.inkMuted, marginTop: "6px" }}>
+                    Courier: <b>BlueDart White-Glove Express</b>
+                  </div>
+                  <div style={{ fontSize: "11px", color: THEME.inkMuted, marginTop: "2px" }}>
+                    Tracking: <b style={{ fontFamily: "monospace", color: THEME.gold }}>{o.tracking_number || "Awaiting dispatch assignment"}</b>
+                  </div>
+                </div>
+
+                {/* 3. Payment Settlement */}
+                <div style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "14px 16px" }}>
+                  <div style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <CreditCard size={13} /> Payment Settlement
+                  </div>
+                  <div style={{ fontSize: "12.5px", fontWeight: 700, color: THEME.ink }}>
+                    {(o.payment_method || "UPI / ONLINE").toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: "11px", color: THEME.inkMuted, marginTop: "2px" }}>
+                    Settlement Status: <b style={{ color: payText }}>{payLabel}</b>
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: THEME.inkSubtle, marginTop: "4px", fontFamily: "monospace" }}>
+                    Ref: {o.gateway_payment_id || `PAY_REF_${o.id.replace(/[^a-zA-Z0-9]/g, "").slice(0, 10).toUpperCase()}`}
+                  </div>
+                </div>
+
+                {/* 4. Privilege & Savings */}
+                <div style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "14px 16px" }}>
+                  <div style={{ fontSize: "10.5px", fontWeight: 700, color: THEME.gold, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Tag size={13} /> Applied Privilege
+                  </div>
+                  {o.discount_code ? (
+                    <div>
+                      <div style={{ fontSize: "12.5px", fontWeight: 700, color: THEME.gold }}>
+                        🎟️ {o.discount_code.toUpperCase()}
+                      </div>
+                      <div style={{ fontSize: "11px", color: THEME.greenText, fontWeight: 600, marginTop: "2px" }}>
+                        Client Savings: -₹{discountAmount.toLocaleString("en-IN")}
+                      </div>
+                      <div style={{ fontSize: "10.5px", color: THEME.inkMuted, marginTop: "2px" }}>
+                        Exclusive VIP promotion applied at checkout
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: "12px", color: THEME.inkMuted }}>No promotional voucher code applied.</div>
+                      <div style={{ fontSize: "10.5px", color: THEME.inkSubtle, marginTop: "4px" }}>
+                        Billed at standard atelier catalog price.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Manifest of Ordered Creations Table */}
+              <div style={{ marginBottom: "22px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: THEME.gold, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "10px" }}>
+                  MANIFEST OF ORDERED CREATIONS ({items.length || o.items_count || 1} PIECES)
+                </div>
+                <div style={{ background: "#ffffff", border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
+                    <thead>
+                      <tr style={{ background: THEME.cream, borderBottom: `1px solid ${THEME.inkBorder}`, color: THEME.gold }}>
+                        <th style={{ padding: "10px 14px", fontWeight: 700 }}>CREATION</th>
+                        <th style={{ padding: "10px 14px", fontWeight: 700 }}>SHADE / VARIANT</th>
+                        <th style={{ padding: "10px 14px", fontWeight: 700, textAlign: "center" }}>QTY</th>
+                        <th style={{ padding: "10px 14px", fontWeight: 700, textAlign: "right" }}>UNIT PRICE</th>
+                        <th style={{ padding: "10px 14px", fontWeight: 700, textAlign: "right" }}>ITEM TOTAL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((it, idx) => (
+                        <tr key={idx} style={{ borderBottom: `1px solid ${THEME.inkBorderSubtle}` }}>
+                          <td style={{ padding: "12px 14px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <img
+                                src={it.image || "/products/Peach Blossom Blush.webp"}
+                                alt={it.name}
+                                style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "6px", background: THEME.cream, border: `1px solid ${THEME.inkBorderSubtle}` }}
+                              />
+                              <div style={{ fontWeight: 600, color: THEME.ink }}>{it.name}</div>
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 14px", color: THEME.inkMuted }}>
+                            {it.shade || "Standard"}
+                          </td>
+                          <td style={{ padding: "12px 14px", textAlign: "center", fontWeight: 600, color: THEME.ink }}>
+                            {it.quantity}
+                          </td>
+                          <td style={{ padding: "12px 14px", textAlign: "right", color: THEME.inkMuted }}>
+                            ₹{it.unitPrice.toLocaleString("en-IN")}
+                          </td>
+                          <td style={{ padding: "12px 14px", textAlign: "right", fontWeight: 700, color: THEME.ink }}>
+                            ₹{(it.itemTotal || it.unitPrice * (it.quantity || 1)).toLocaleString("en-IN")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Financial Breakdown & Grand Total */}
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "24px" }}>
+                <div style={{ width: "320px", background: THEME.creamLight, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "16px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: THEME.inkMuted, marginBottom: "8px" }}>
+                    <span>Bag Subtotal:</span>
+                    <span style={{ fontWeight: 600, color: THEME.ink }}>₹{subtotal.toLocaleString("en-IN")}</span>
+                  </div>
+
+                  {discountAmount > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: THEME.greenText, marginBottom: "8px" }}>
+                      <span>Voucher ({o.discount_code}):</span>
+                      <span style={{ fontWeight: 700 }}>-₹{discountAmount.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: THEME.inkMuted, marginBottom: "8px" }}>
+                    <span>White-Glove Courier:</span>
+                    <span style={{ fontWeight: 600, color: THEME.greenText }}>COMPLIMENTARY</span>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: THEME.inkSubtle, marginBottom: "10px" }}>
+                    <span>Statutory 18% GST (CGST 9% + SGST 9%):</span>
+                    <span>Included</span>
+                  </div>
+
+                  <div style={{ borderTop: `1px solid ${THEME.inkBorder}`, paddingTop: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: THEME.ink }}>Grand Total:</span>
+                    <span style={{ fontSize: "20px", fontWeight: 700, color: THEME.gold, fontFamily: THEME.fontSerif }}>
+                      {formattedTotal}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Actions Bar */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${THEME.inkBorder}`, paddingTop: "18px", flexWrap: "wrap", gap: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "11.5px", fontWeight: 700, color: THEME.inkMuted }}>Dispatch Status:</span>
+                  <select
+                    value={o.status}
+                    onChange={(e) => {
+                      const newSt = e.target.value as any;
+                      handleUpdateStatus(o.id, newSt);
+                      setSelectedOrderDetails((prev) => (prev ? { ...prev, status: newSt } : null));
+                    }}
+                    style={{
+                      background: "#ffffff",
+                      color: THEME.ink,
+                      border: `1px solid ${THEME.inkBorder}`,
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "11.5px",
+                      fontWeight: 600,
+                      outline: "none",
+                    }}
+                  >
+                    <option value="processing">Processing</option>
+                    <option value="dispatched">Dispatched</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    onClick={() => {
+                      setSelectedInvoiceOrder(o);
+                      setSelectedOrderDetails(null);
+                    }}
+                    style={{
+                      background: THEME.ink,
+                      color: "#ffffff",
+                      border: "none",
+                      padding: "9px 20px",
+                      borderRadius: "6px",
+                      fontWeight: 700,
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      boxShadow: "0 4px 12px rgba(33, 19, 15, 0.15)",
+                    }}
+                  >
+                    <FileText size={14} /> View / Print Tax Invoice
+                  </button>
+                  <button
+                    onClick={() => setSelectedOrderDetails(null)}
+                    style={{
+                      background: THEME.cream,
+                      border: `1px solid ${THEME.inkBorder}`,
+                      color: THEME.ink,
+                      padding: "9px 18px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close Dossier
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

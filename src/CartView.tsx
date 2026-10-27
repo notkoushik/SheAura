@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ShoppingBag,
   ArrowLeft,
@@ -22,13 +22,30 @@ import {
   Clock,
   MapPin,
   Lock,
+  User,
+  LogIn,
+  Ticket,
 } from "lucide-react";
 import {
   CartItem,
   Product,
   VALID_PROMOS,
 } from "./lib/cartWishlistContext";
-import { getCurrentUser, recordUserOrder, OrderHistoryItem } from "./lib/auth";
+import {
+  getCurrentUser,
+  setActiveUser,
+  signIn,
+  signUp,
+  recordUserOrder,
+  OrderHistoryItem,
+  SheAuraUser,
+} from "./lib/auth";
+import {
+  getAllCoupons,
+  validateCoupon,
+  recordCouponUsage,
+  Coupon,
+} from "./lib/couponStore";
 import { generateInvoiceHtml, InvoiceData, numberToWords } from "./lib/invoice";
 import { submitOrderToBackend } from "./lib/api";
 import { supabase, isSupabaseConfigured } from "./lib/supabase";
@@ -59,11 +76,31 @@ export default function CartView({
   // Steps: "bag" | "shipping" | "payment" | "confirmed"
   const [step, setStep] = useState<"bag" | "shipping" | "payment" | "confirmed">("bag");
 
-  // Promo Code State
+  // Promo Code & Dynamic Coupons State
   const [promoInput, setPromoInput] = useState("");
   const [appliedPromoCode, setAppliedPromoCode] = useState<string | null>("SHEAURA10");
   const [promoError, setPromoError] = useState("");
-  const [promoSuccess, setPromoSuccess] = useState("10% Couture Welcome Discount Applied");
+  const [promoSuccess, setPromoSuccess] = useState("10% Couture Welcome Privilege Applied");
+  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>(() => getAllCoupons());
+
+  useEffect(() => {
+    const handleCouponsUpdated = (e: any) => {
+      setAvailableCoupons(e.detail || getAllCoupons());
+    };
+    window.addEventListener("sheaura:coupons-updated", handleCouponsUpdated);
+    return () => window.removeEventListener("sheaura:coupons-updated", handleCouponsUpdated);
+  }, []);
+
+  // Customer Authentication State inside Cart Checkout
+  const [activeUser, setActiveUserState] = useState<SheAuraUser | null>(() => getCurrentUser());
+  const [showAuthBox, setShowAuthBox] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "register">("signin");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authFullName, setAuthFullName] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authSuccessMsg, setAuthSuccessMsg] = useState("");
 
   // Preserved snapshot of items when order is placed for reliable GST invoice download even after onClearCart
   const [confirmedOrderItems, setConfirmedOrderItems] = useState<CartItem[]>([]);
@@ -83,6 +120,55 @@ export default function CartView({
       deliverySpeed: "standard", // "standard" | "express"
     };
   });
+
+  // Handle Customer Sign-In / Register inside Checkout
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    setAuthSuccessMsg("");
+    setAuthLoading(true);
+
+    try {
+      if (authMode === "signin") {
+        const res = await signIn(authEmail, authPassword);
+        if (res.success && res.user) {
+          setActiveUserState(res.user);
+          setShowAuthBox(false);
+          setAuthSuccessMsg(`✓ Welcome back, ${res.user.fullName}! Your order is linked to your account.`);
+          setShippingForm((prev) => ({
+            ...prev,
+            fullName: res.user!.fullName,
+            email: res.user!.email,
+            phone: res.user!.phone?.replace(/[^0-9]/g, "") || prev.phone,
+            address: res.user!.addressBook?.[0]?.street || prev.address,
+            city: res.user!.addressBook?.[0]?.city || prev.city,
+            state: res.user!.addressBook?.[0]?.state || prev.state,
+            pincode: res.user!.addressBook?.[0]?.postalCode || prev.pincode,
+          }));
+        } else {
+          setAuthError(res.error || "Authentication failed. Please check your credentials.");
+        }
+      } else {
+        const res = await signUp(authFullName, authEmail, authPassword);
+        if (res.success && res.user) {
+          setActiveUserState(res.user);
+          setShowAuthBox(false);
+          setAuthSuccessMsg(`✓ Welcome to She'Aura, ${res.user.fullName}! Account created.`);
+          setShippingForm((prev) => ({
+            ...prev,
+            fullName: res.user!.fullName,
+            email: res.user!.email,
+          }));
+        } else {
+          setAuthError(res.error || "Could not register account. Please try again.");
+        }
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || "An unexpected error occurred during authentication.");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   // Payment Form State
   const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "netbanking" | "cod">("upi");
@@ -118,45 +204,42 @@ export default function CartView({
     return isFreeShipping ? 0 : 150;
   }, [subtotal, shippingForm.deliverySpeed, isFreeShipping]);
 
-  // Discount Calculation (Money-Safe exact integer rounding, strictly capped at subtotal)
+  // Discount Calculation (Dynamic from registry, money-safe exact integer rounding, capped at subtotal)
   const discountAmount = useMemo(() => {
     if (!appliedPromoCode) return 0;
     const clean = appliedPromoCode.trim().toUpperCase();
-    const promo = VALID_PROMOS[clean];
-    if (!promo) return 0;
-    if (promo.minSubtotal && subtotal < promo.minSubtotal) return 0;
+    const coupon = availableCoupons.find((c) => c.code.toUpperCase() === clean);
+    if (!coupon || !coupon.isActive) return 0;
+    if (coupon.minSubtotal && subtotal < coupon.minSubtotal) return 0;
 
-    if (promo.discountType === "percentage") {
-      const calculated = Math.round(subtotal * promo.discountValue);
+    if (coupon.discountType === "percentage") {
+      const calculated = Math.round(subtotal * coupon.discountValue);
       return Math.min(subtotal, Math.max(0, calculated));
     }
-    return Math.min(subtotal, Math.max(0, promo.discountValue));
-  }, [appliedPromoCode, subtotal]);
+    return Math.min(subtotal, Math.max(0, coupon.discountValue));
+  }, [appliedPromoCode, subtotal, availableCoupons]);
 
   const grandTotal = Math.max(0, subtotal - discountAmount + shippingCost);
 
-  // Apply Promo
+  // Apply Promo via Central Coupon Validator
   const handleApplyPromo = (e: React.FormEvent) => {
     e.preventDefault();
     setPromoError("");
     setPromoSuccess("");
     const clean = promoInput.trim().toUpperCase();
     if (!clean) {
-      setPromoError("Please enter a voucher code.");
+      setPromoError("Please enter a privilege voucher code.");
       return;
     }
 
-    const promo = VALID_PROMOS[clean];
-    if (!promo) {
-      setPromoError(`Code "${clean}" is not recognized. Try 'SHEAURA10', 'HAUTE500', or 'VIPFIRST'.`);
+    const validation = validateCoupon(clean, subtotal);
+    if (!validation.valid) {
+      setPromoError(validation.error || `Code "${clean}" is invalid or dismantled.`);
       return;
     }
-    if (promo.minSubtotal && subtotal < promo.minSubtotal) {
-      setPromoError(`Requires a minimum bag subtotal of ₹${promo.minSubtotal.toLocaleString("en-IN")}. Current: ₹${subtotal.toLocaleString("en-IN")}.`);
-      return;
-    }
+
     setAppliedPromoCode(clean);
-    setPromoSuccess(promo.description);
+    setPromoSuccess(validation.coupon?.description || `Privilege "${clean}" Applied`);
     setPromoInput("");
   };
 
@@ -304,6 +387,11 @@ export default function CartView({
         address: fullShippingAddr,
         email: customerEmailAddr,
       });
+
+      // Record coupon usage statistics
+      if (appliedPromoCode) {
+        recordCouponUsage(appliedPromoCode);
+      }
 
       onClearCart();
       setStep("confirmed");
@@ -794,6 +882,136 @@ export default function CartView({
                     <span className="cart-category-tag">Step 2 of 3</span>
                   </div>
 
+                  {/* Customer Authentication & Profile Linking Banner */}
+                  {activeUser ? (
+                    <div className="checkout-logged-in-banner">
+                      <div className="logged-in-meta">
+                        <ShieldCheck size={16} style={{ color: "#059669" }} />
+                        <span>
+                          Signed in as <b>{activeUser.fullName}</b> ({activeUser.email}) · Order will be saved to your private portal
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="switch-account-link"
+                        onClick={() => {
+                          setActiveUser(null);
+                          setActiveUserState(null);
+                        }}
+                      >
+                        Sign Out / Switch Account
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="checkout-auth-banner">
+                      <div className="auth-banner-left">
+                        <Sparkles size={18} style={{ color: "#a36a3b" }} />
+                        <div>
+                          <h4>Maison Member Sign In & Order Preservation</h4>
+                          <p>Sign in or register to link this order, track white-glove courier transit in your personal portal, and view invoices.</p>
+                        </div>
+                      </div>
+                      <div className="auth-banner-actions">
+                        <button
+                          type="button"
+                          className="auth-quick-btn"
+                          onClick={() => {
+                            setAuthMode("signin");
+                            setShowAuthBox(!showAuthBox);
+                          }}
+                        >
+                          {showAuthBox && authMode === "signin" ? "Close" : "Sign In"}
+                        </button>
+                        <button
+                          type="button"
+                          className="auth-quick-btn secondary"
+                          onClick={() => {
+                            setAuthMode("register");
+                            setShowAuthBox(!showAuthBox);
+                          }}
+                        >
+                          {showAuthBox && authMode === "register" ? "Close" : "Register"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {showAuthBox && !activeUser && (
+                    <div className="checkout-auth-inline-box">
+                      <div className="checkout-auth-inline-header">
+                        <h4>{authMode === "signin" ? "Sign In to Your Maison Profile" : "Create New Maison Member Account"}</h4>
+                        <button
+                          type="button"
+                          onClick={() => setShowAuthBox(false)}
+                          style={{ background: "transparent", border: "none", color: "#8c766a", cursor: "pointer", fontSize: "14px" }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        {authMode === "register" && (
+                          <div className="form-field">
+                            <label>FULL NAME</label>
+                            <input
+                              type="text"
+                              value={authFullName}
+                              onChange={(e) => setAuthFullName(e.target.value)}
+                              placeholder="e.g. Aaradhya Sharma"
+                            />
+                          </div>
+                        )}
+
+                        <div className="form-field">
+                          <label>EMAIL ADDRESS</label>
+                          <input
+                            type="email"
+                            value={authEmail}
+                            onChange={(e) => setAuthEmail(e.target.value)}
+                            placeholder="e.g. client@sheaura.com"
+                          />
+                        </div>
+
+                        <div className="form-field">
+                          <label>PASSWORD</label>
+                          <input
+                            type="password"
+                            value={authPassword}
+                            onChange={(e) => setAuthPassword(e.target.value)}
+                            placeholder="••••••••"
+                          />
+                        </div>
+
+                        {authError && <span style={{ color: "#dc2626", fontSize: "11px" }}>{authError}</span>}
+
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "4px" }}>
+                          <button
+                            type="button"
+                            className="cart-primary-action-btn"
+                            style={{ minHeight: "40px", padding: "10px 18px", fontSize: "11px" }}
+                            disabled={authLoading}
+                            onClick={handleAuthSubmit}
+                          >
+                            {authLoading ? "Authenticating…" : authMode === "signin" ? "Sign In & Link Order" : "Register & Continue"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAuthMode(authMode === "signin" ? "register" : "signin")}
+                            style={{ background: "transparent", border: "none", color: "#a36a3b", fontSize: "11px", cursor: "pointer", textDecoration: "underline" }}
+                          >
+                            {authMode === "signin" ? "Don't have an account? Register" : "Already a member? Sign In"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {authSuccessMsg && (
+                    <div style={{ background: "#f0f7ef", border: "1px solid rgba(45, 94, 53, 0.25)", padding: "10px 14px", borderRadius: "8px", fontSize: "11.5px", color: "#2d5e35", marginBottom: "16px" }}>
+                      {authSuccessMsg}
+                    </div>
+                  )}
+
                   <form className="cart-shipping-form" onSubmit={(e) => { e.preventDefault(); setStep("payment"); window.scrollTo(0, 0); }}>
                     <div className="form-row-two">
                       <div className="form-field">
@@ -1112,53 +1330,35 @@ export default function CartView({
                     </div>
                   )}
 
-                  {/* Quick-Apply Authentic Promo Vouchers */}
-                  <div className="quick-promo-chips">
-                    <span className="chips-title">Available Privileges:</span>
-                    <div className="chips-row">
-                      <button
-                        type="button"
-                        className={`promo-chip ${appliedPromoCode === "SHEAURA10" ? "active" : ""}`}
-                        onClick={() => {
-                          setAppliedPromoCode("SHEAURA10");
-                          setPromoSuccess("10% Couture Welcome Discount");
-                          setPromoError("");
-                        }}
-                      >
-                        SHEAURA10 (10% OFF)
-                      </button>
-                      <button
-                        type="button"
-                        className={`promo-chip ${appliedPromoCode === "HAUTE500" ? "active" : ""}`}
-                        onClick={() => {
-                          if (subtotal < 1500) {
-                            setPromoError("HAUTE500 requires bag subtotal above ₹1,500");
-                          } else {
-                            setAppliedPromoCode("HAUTE500");
-                            setPromoSuccess("₹500 Off Orders Above ₹1,500");
-                            setPromoError("");
-                          }
-                        }}
-                      >
-                        HAUTE500 (₹500 OFF)
-                      </button>
-                      <button
-                        type="button"
-                        className={`promo-chip ${appliedPromoCode === "VIPFIRST" ? "active" : ""}`}
-                        onClick={() => {
-                          if (subtotal < 999) {
-                            setPromoError("VIPFIRST requires bag subtotal above ₹999");
-                          } else {
-                            setAppliedPromoCode("VIPFIRST");
-                            setPromoSuccess("₹300 Off First Luxury Order Above ₹999");
-                            setPromoError("");
-                          }
-                        }}
-                      >
-                        VIPFIRST (₹300 OFF)
-                      </button>
+                  {/* Quick-Apply Dynamic Promo Vouchers from Admin Registry */}
+                  {availableCoupons.filter((c) => c.isActive).length > 0 && (
+                    <div className="quick-promo-chips">
+                      <span className="chips-title">Active Maison Privileges:</span>
+                      <div className="chips-row">
+                        {availableCoupons
+                          .filter((c) => c.isActive)
+                          .slice(0, 4)
+                          .map((c) => (
+                            <button
+                              key={c.code}
+                              type="button"
+                              className={`promo-chip ${appliedPromoCode === c.code ? "active" : ""}`}
+                              onClick={() => {
+                                if (c.minSubtotal && subtotal < c.minSubtotal) {
+                                  setPromoError(`Code "${c.code}" requires bag subtotal of ₹${c.minSubtotal.toLocaleString("en-IN")}`);
+                                } else {
+                                  setAppliedPromoCode(c.code);
+                                  setPromoSuccess(c.description);
+                                  setPromoError("");
+                                }
+                              }}
+                            >
+                              {c.code} ({c.discountType === "percentage" ? `${Math.round(c.discountValue * 100)}% OFF` : `₹${c.discountValue} OFF`})
+                            </button>
+                          ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </form>
 
                 {/* Breakdown Lines */}
