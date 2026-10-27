@@ -556,18 +556,8 @@ export default function AuthAccountView({
         </button>
 
         <div className="auth-nav-actions">
-          {user ? (
+          {user && (
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              {isAdminUser && (
-                <button
-                  className="auth-pill-btn admin"
-                  onClick={onOpenAdmin}
-                  title="Direct Operations Studio"
-                >
-                  <ShieldCheck size={13} />
-                  <span>Admin Studio</span>
-                </button>
-              )}
               <button
                 className="auth-pill-btn signout"
                 onClick={handleSignOut}
@@ -576,15 +566,6 @@ export default function AuthAccountView({
                 <span>Sign Out</span>
               </button>
             </div>
-          ) : (
-            <button
-              className="auth-pill-btn admin"
-              onClick={onOpenAdmin}
-              title="Direct Operations Studio"
-            >
-              <ShieldCheck size={13} />
-              <span>Admin Studio</span>
-            </button>
           )}
         </div>
       </header>
@@ -2138,50 +2119,7 @@ export default function AuthAccountView({
                   <User size={10} />
                   <span>VIP Member Demo</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail("admin@sheaura.com");
-                    setPassword("sheaura2025!");
-                  }}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid rgba(125, 38, 22, 0.25)",
-                    background: "rgba(125, 38, 22, 0.04)",
-                    color: "#7d2616",
-                    fontSize: "8.5px",
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
-                >
-                  <ShieldCheck size={10} />
-                  <span>Admin Studio Demo</span>
-                </button>
               </div>
-
-              <button
-                type="button"
-                onClick={onOpenAdmin}
-                style={{
-                  marginTop: "12px",
-                  background: "none",
-                  border: "none",
-                  fontSize: "9px",
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "#7d2616",
-                  cursor: "pointer",
-                }}
-              >
-                Enter Admin Studio Directly →
-              </button>
             </div>
           </div>
         )}

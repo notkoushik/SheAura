@@ -108,13 +108,47 @@ export async function previewOrder(req: Request, res: Response): Promise<void> {
   }
 }
 
+function maskString(str?: string | null): string {
+  if (!str) return "";
+  if (str.length <= 4) return "***";
+  return str.slice(0, 2) + "*".repeat(Math.max(3, str.length - 4)) + str.slice(-2);
+}
+
+function maskEmail(email?: string | null): string {
+  if (!email || !email.includes("@")) return "***@***.com";
+  const [user, domain] = email.split("@");
+  return `${user.slice(0, 1)}***@${domain}`;
+}
+
+function maskPhone(phone?: string | null): string {
+  if (!phone) return "";
+  const cleaned = phone.replace(/\s+/g, "");
+  if (cleaned.length <= 4) return "****";
+  return cleaned.slice(0, 3) + "******" + cleaned.slice(-4);
+}
+
+function maskAddress(addr?: string | null): string {
+  if (!addr) return "Private Client Sanctuary";
+  const parts = addr.split(",");
+  if (parts.length > 2) {
+    // Only reveal city / state, hide specific street address and flat numbers
+    return `[Protected Residence], ${parts.slice(-2).join(",").trim()}`;
+  }
+  return "[Protected Residence]";
+}
+
 export async function getOrderById(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
+    if (!id || typeof id !== "string") {
+      res.status(400).json({ error: "Invalid order ID" });
+      return;
+    }
+
     const { data: order, error } = await supabaseAdmin
       .from("orders")
       .select("*")
-      .eq("id", id)
+      .eq("id", id.trim())
       .single();
 
     if (error || !order) {
@@ -122,8 +156,49 @@ export async function getOrderById(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    res.json({ success: true, order });
+    // Check if requester has administrative credentials
+    const adminKey = req.headers["x-admin-key"] as string | undefined;
+    const authHeader = req.headers.authorization;
+    const hasAdminAccess = adminKey && adminKey === process.env.ADMIN_SECRET_KEY;
+
+    // Check if requester is authenticated as the order owner
+    let isOwner = false;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.split(" ")[1];
+      try {
+        const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+        if (user && user.email && user.email.toLowerCase() === (order.client_email || "").toLowerCase()) {
+          isOwner = true;
+        }
+      } catch {}
+    }
+
+    if (hasAdminAccess || isOwner) {
+      // Full details for verified owner or administrator
+      res.json({ success: true, order });
+      return;
+    }
+
+    // Privacy-Preserving Public Tracking View (Defense against IDOR and customer PII scrapers)
+    const sanitizedOrder = {
+      id: order.id,
+      status: order.status,
+      payment_status: order.payment_status,
+      tracking_number: order.tracking_number,
+      eta: order.eta,
+      items_count: order.items_count,
+      total_amount: order.total_amount,
+      items: order.items,
+      created_at: order.created_at,
+      client_name: maskString(order.client_name),
+      client_email: maskEmail(order.client_email),
+      client_phone: maskPhone(order.client_phone),
+      shipping_address: maskAddress(order.shipping_address),
+    };
+
+    res.json({ success: true, order: sanitizedOrder });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch order" });
   }
 }
+

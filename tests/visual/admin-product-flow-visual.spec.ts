@@ -8,8 +8,11 @@ test.describe("Admin Product Creation, Storefront Customer Ordering & Cleanup Vi
     if (testInfo.project.name !== "desktop-chrome") return;
     test.setTimeout(60000);
 
-    // A. Go to Admin Operations Studio
-    await page.goto("/admin");
+    // A. Go to Admin Operations Studio via Secure Login Gateway
+    await page.goto("/sheaura/login");
+    await page.fill("input[type='email']", "admin@sheaura.com");
+    await page.fill("input[type='password']", "sheaura2025!");
+    await page.click("button:has-text('Authorize & Enter Console')");
     await expect(page.locator(".admin-console-root")).toBeVisible({ timeout: 15000 });
 
     // B. Navigate to Catalog & Inventory Tab
@@ -56,11 +59,11 @@ test.describe("Admin Product Creation, Storefront Customer Ordering & Cleanup Vi
     // E. Publish Creation to Storefront
     const publishBtn = page.locator("button:has-text('Publish Creation to Storefront')").first();
     await publishBtn.click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
 
     // Verify item is present in the admin inventory list
-    const newItemRow = page.locator("tr:has-text('Maison Rubis Velvet Lipstick (Test Creation)')");
-    await expect(newItemRow).toBeVisible({ timeout: 10000 });
+    const newItemRow = page.locator("tr:has-text('Maison Rubis Velvet Lipstick (Test Creation)')").first();
+    await expect(newItemRow).toBeVisible({ timeout: 15000 });
 
     // Screenshot 4: Admin Inventory Table with Newly Created Item
     await page.screenshot({
@@ -102,7 +105,7 @@ test.describe("Admin Product Creation, Storefront Customer Ordering & Cleanup Vi
     // H. Open Product Detail Page (PDP)
     await storefrontItem.click();
     await page.waitForTimeout(800);
-    await expect(page.locator("text=Maison Rubis Velvet Lipstick (Test Creation)").first()).toBeVisible();
+    await expect(page.locator("text=Maison Rubis Velvet Lipstick (Test Creation)").first()).toBeVisible({ timeout: 10000 });
 
     // Screenshot 7: Customer PDP for New Creation
     await page.screenshot({

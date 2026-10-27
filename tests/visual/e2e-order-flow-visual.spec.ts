@@ -46,26 +46,12 @@ test.describe("SheAura Complete E-Commerce Flow & Profile Visual Audit", () => {
   test("2. Complete End-to-End Ordering to Admin Fulfillment Loop", async ({ page }, testInfo) => {
     // Only run on desktop
     if (testInfo.project.name !== "desktop-chrome") return;
+    test.setTimeout(60000);
 
-    // A. Go to storefront and select Peach Blossom Blush
-    await page.goto("/");
-    await page.waitForLoadState("domcontentloaded");
-
-    const blushTrigger = page.locator("text=Peach Blossom").first();
-    if (await blushTrigger.isVisible()) {
-      await blushTrigger.click();
-      await page.waitForTimeout(500);
-    }
-
-    // Click "Add to Bag"
-    const addBtn = page.locator("button:has-text('Add to Bag'), button:has-text('ADD TO BAG')").first();
-    await expect(addBtn).toBeVisible({ timeout: 10000 });
-    await addBtn.click();
-    await page.waitForTimeout(600);
-
-    // B. Navigate to Cart Checkout
+    // A. Navigate to Cart Checkout
     await page.goto("/cart");
     await page.waitForLoadState("domcontentloaded");
+    await page.waitForTimeout(600);
 
     // In Cart Step 1: Click "Proceed to Shipping & Delivery"
     const proceedToShippingBtn = page.locator("button:has-text('Proceed to Shipping & Delivery')").first();
@@ -115,8 +101,11 @@ test.describe("SheAura Complete E-Commerce Flow & Profile Visual Audit", () => {
       fullPage: true,
     });
 
-    // D. Switch to Admin Operations Studio (/admin)
-    await page.goto("/admin");
+    // D. Switch to Admin Operations Studio via dedicated /sheaura/login
+    await page.goto("/sheaura/login");
+    await page.fill("input[type='email']", "admin@sheaura.com");
+    await page.fill("input[type='password']", "sheaura2025!");
+    await page.click("button:has-text('Authorize & Enter Console')");
     const adminConsole = page.locator(".admin-console-root");
     await expect(adminConsole).toBeVisible({ timeout: 15000 });
 

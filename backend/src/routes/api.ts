@@ -2,9 +2,15 @@ import { Router } from "express";
 import { getCatalog, getProductBySlug } from "../controllers/catalogController.js";
 import { createOrder, previewOrder, getOrderById } from "../controllers/orderController.js";
 import { createPaymentIntent, verifyPayment } from "../controllers/paymentController.js";
-import { getAdminOrders, updateOrderStatus, getAdminStats } from "../controllers/adminController.js";
+import {
+  getAdminOrders,
+  updateOrderStatus,
+  getAdminStats,
+  adminLogin,
+  verifyAdminSession,
+} from "../controllers/adminController.js";
 import { requireAdmin } from "../middleware/auth.js";
-import { checkoutLimiter } from "../middleware/security.js";
+import { checkoutLimiter, adminLoginLimiter } from "../middleware/security.js";
 
 export const apiRouter = Router();
 
@@ -27,11 +33,16 @@ apiRouter.post("/orders/preview", previewOrder);
 apiRouter.post("/orders", checkoutLimiter, createOrder);
 apiRouter.get("/orders/:id", getOrderById);
 
-// Cryptographic Payment Gateways
+// Cryptographic Payment Gateways (Strict Validation & Anti-Price-Tampering)
 apiRouter.post("/payments/create-intent", checkoutLimiter, createPaymentIntent);
 apiRouter.post("/payments/verify", checkoutLimiter, verifyPayment);
+
+// Dedicated Administrative Gateway (Rate-Limited Brute Force Defense)
+apiRouter.post("/admin/login", adminLoginLimiter, adminLogin);
+apiRouter.get("/admin/verify-session", verifyAdminSession);
 
 // Protected Admin Console Endpoints (Strict Middleware)
 apiRouter.get("/admin/stats", requireAdmin, getAdminStats);
 apiRouter.get("/admin/orders", requireAdmin, getAdminOrders);
 apiRouter.patch("/admin/orders/:id", requireAdmin, updateOrderStatus);
+

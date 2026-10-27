@@ -106,10 +106,15 @@ async function runTests() {
   // TEST SUITE 3: Supabase Cloud Database Connection & Catalog
   // ---------------------------------------------------------
   console.log("\n🧪 SUITE 3: Cloud Database & 12-Product Catalog Verification");
-  const envContent = fs.readFileSync(path.resolve(__dirname, '..', '.env'), 'utf8');
+  let envContent = "";
+  if (fs.existsSync(path.resolve(__dirname, '..', 'backend', '.env'))) {
+    envContent = fs.readFileSync(path.resolve(__dirname, '..', 'backend', '.env'), 'utf8');
+  } else if (fs.existsSync(path.resolve(__dirname, '..', '.env'))) {
+    envContent = fs.readFileSync(path.resolve(__dirname, '..', '.env'), 'utf8');
+  }
   const dbMatch = envContent.match(/DATABASE_URL=(.+)/);
   if (!dbMatch) {
-    console.error("  ❌ Missing DATABASE_URL in .env");
+    console.error("  ❌ Missing DATABASE_URL in backend/.env or .env");
     process.exit(1);
   }
 

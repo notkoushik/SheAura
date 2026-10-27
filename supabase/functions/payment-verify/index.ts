@@ -37,25 +37,28 @@ serve(async (req: Request) => {
 
     const { orderId, gatewayOrderId, paymentId, signature } = await req.json();
 
-    if (!orderId || !paymentId) {
-      return new Response(JSON.stringify({ error: "Missing orderId or paymentId" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!orderId || !paymentId || !gatewayOrderId || !signature) {
+      return new Response(
+        JSON.stringify({
+          error: "Missing mandatory cryptographic verification parameters (orderId, gatewayOrderId, paymentId, signature are required)",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Cryptographic HMAC Verification
-    if (razorpaySecret && signature && gatewayOrderId) {
-      const expected = await hmacSha256(razorpaySecret, `${gatewayOrderId}|${paymentId}`);
-      if (expected !== signature) {
-        return new Response(
-          JSON.stringify({ error: "Cryptographic signature mismatch: Untrusted payment attempt" }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
+    const expected = await hmacSha256(razorpaySecret || "rzp_secret_placeholder", `${gatewayOrderId}|${paymentId}`);
+    if (expected.toLowerCase() !== String(signature).toLowerCase()) {
+      return new Response(
+        JSON.stringify({ error: "Cryptographic signature mismatch: Untrusted payment attempt" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     // Update order status securely

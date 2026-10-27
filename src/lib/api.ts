@@ -121,9 +121,9 @@ export async function submitOrderToBackend(payload: ApiOrderPayload): Promise<an
 /** Verify Cryptographic Payment Signature */
 export async function verifyPaymentSignature(paymentData: {
   orderId: string;
-  gatewayOrderId?: string;
+  gatewayOrderId: string;
   paymentId: string;
-  signature?: string;
+  signature: string;
 }): Promise<boolean> {
   if (USE_SUPABASE_FUNCTIONS && isSupabaseConfigured) {
     try {
@@ -148,3 +148,69 @@ export async function verifyPaymentSignature(paymentData: {
     return false;
   }
 }
+
+/** Create Cryptographic Payment Intent with Server-Authoritative Amount */
+export async function createPaymentIntentApi(orderId: string): Promise<{
+  success: boolean;
+  gatewayOrderId?: string;
+  amount?: number;
+  currency?: string;
+  keyId?: string;
+  error?: string;
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/payments/create-intent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || "Failed to initialize payment gateway" };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Payment service connection failure" };
+  }
+}
+
+/** Administrative Studio Gateway Login */
+export async function adminLoginApi(credentials: {
+  email?: string;
+  password?: string;
+  secretKey?: string;
+}): Promise<{
+  success: boolean;
+  token?: string;
+  user?: any;
+  error?: string;
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(credentials),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || "Administrative authentication denied" };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Admin gateway server unreachable" };
+  }
+}
+
+/** Verify Administrative Session */
+export async function verifyAdminSessionApi(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/verify-session`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    return res.ok && data?.authenticated === true;
+  } catch {
+    return false;
+  }
+}
+

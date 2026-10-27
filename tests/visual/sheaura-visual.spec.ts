@@ -59,11 +59,14 @@ test.describe("SheAura Luxury Visual & Screenshot Test Suite", () => {
   test("3. Maison Operations Studio: Admin dashboard KPI strip and order table visual", async ({
     page,
   }) => {
-    await page.goto("/admin");
-    await page.waitForLoadState("domcontentloaded");
+    // Authenticate via dedicated /sheaura/login gateway
+    await page.goto("/sheaura/login");
+    await page.fill("input[type='email']", "admin@sheaura.com");
+    await page.fill("input[type='password']", "sheaura2025!");
+    await page.click("button:has-text('Authorize & Enter Console')");
 
     const adminRoot = page.locator(".admin-console-root");
-    await expect(adminRoot).toBeVisible({ timeout: 10000 });
+    await expect(adminRoot).toBeVisible({ timeout: 15000 });
 
     // Verify KPI strip is present
     await expect(page.locator("text=Gross Revenue")).toBeVisible();

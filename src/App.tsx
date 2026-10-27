@@ -12,6 +12,7 @@ import { getProductInciDetails } from "./lib/inciData";
 const AdminView = lazy(() => import("./AdminView"));
 const AuthAccountView = lazy(() => import("./AuthAccountView"));
 const RunwayCinemaView = lazy(() => import("./RunwayCinemaView"));
+import AdminLoginView from "./AdminLoginView";
 import {
   CartItem,
   getInitialCart,
@@ -28,7 +29,7 @@ import {
   getLocalCustomProducts,
   mapSupabaseToStorefront,
 } from "./lib/catalog";
-import { getCurrentUser, onAuthStateChanged, SheAuraUser } from "./lib/auth";
+import { getCurrentUser, onAuthStateChanged, SheAuraUser, getAdminSession } from "./lib/auth";
 
 export { photos, resolveAsset };
 export const products = defaultProducts;
@@ -1876,21 +1877,35 @@ function MobileBottomBar({
 }
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<"storefront" | "account" | "admin" | "runway" | "cart" | "wishlist">(() => {
+  const [currentView, setCurrentView] = useState<"storefront" | "account" | "admin" | "admin-login" | "runway" | "cart" | "wishlist">(() => {
     if (typeof window !== "undefined") {
-      if (window.location.pathname === "/admin") return "admin";
-      if (window.location.pathname === "/login" || window.location.pathname === "/account") return "account";
-      if (window.location.pathname === "/runway" || window.location.pathname === "/cinema") return "runway";
-      if (window.location.pathname === "/cart" || window.location.pathname === "/bag") return "cart";
-      if (window.location.pathname === "/wishlist") return "wishlist";
+      const p = (window.location.pathname + window.location.hash).toLowerCase();
+      if (p.includes("sheaura/login") || p.includes("sheaura-login")) return "admin-login";
+      if (p.includes("/admin") || p.includes("sheaura/admin")) {
+        return getAdminSession() ? "admin" : "admin-login";
+      }
+      if (p.includes("/login") || p.includes("/account")) return "account";
+      if (p.includes("/runway") || p.includes("/cinema")) return "runway";
+      if (p.includes("/cart") || p.includes("/bag")) return "cart";
+      if (p.includes("/wishlist")) return "wishlist";
     }
     return "storefront";
   });
 
-  const navigateTo = (view: "storefront" | "account" | "admin" | "runway" | "cart" | "wishlist") => {
+  const navigateTo = (view: "storefront" | "account" | "admin" | "admin-login" | "runway" | "cart" | "wishlist") => {
+    // Access control: Route unauthenticated admin requests to /sheaura/login
+    if (view === "admin" && !getAdminSession()) {
+      setCurrentView("admin-login");
+      window.history.pushState({}, "", "/sheaura/login");
+      window.scrollTo(0, 0);
+      return;
+    }
+
     setCurrentView(view);
     const path =
-      view === "admin"
+      view === "admin-login"
+        ? "/sheaura/login"
+        : view === "admin"
         ? "/admin"
         : view === "account"
         ? "/account"
@@ -1907,12 +1922,22 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      if (window.location.pathname === "/admin") setCurrentView("admin");
-      else if (window.location.pathname === "/login" || window.location.pathname === "/account") setCurrentView("account");
-      else if (window.location.pathname === "/runway" || window.location.pathname === "/cinema") setCurrentView("runway");
-      else if (window.location.pathname === "/cart" || window.location.pathname === "/bag") setCurrentView("cart");
-      else if (window.location.pathname === "/wishlist") setCurrentView("wishlist");
-      else setCurrentView("storefront");
+      const p = (window.location.pathname + window.location.hash).toLowerCase();
+      if (p.includes("sheaura/login") || p.includes("sheaura-login")) {
+        setCurrentView("admin-login");
+      } else if (p.includes("/admin") || p.includes("sheaura/admin")) {
+        setCurrentView(getAdminSession() ? "admin" : "admin-login");
+      } else if (p.includes("/login") || p.includes("/account")) {
+        setCurrentView("account");
+      } else if (p.includes("/runway") || p.includes("/cinema")) {
+        setCurrentView("runway");
+      } else if (p.includes("/cart") || p.includes("/bag")) {
+        setCurrentView("cart");
+      } else if (p.includes("/wishlist")) {
+        setCurrentView("wishlist");
+      } else {
+        setCurrentView("storefront");
+      }
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -2074,7 +2099,25 @@ export default function App() {
     };
   }, []);
 
+  if (currentView === "admin-login") {
+    return (
+      <AdminLoginView
+        onSuccess={() => navigateTo("admin")}
+        onBack={() => navigateTo("storefront")}
+      />
+    );
+  }
+
   if (currentView === "admin") {
+    if (!getAdminSession()) {
+      return (
+        <AdminLoginView
+          onSuccess={() => navigateTo("admin")}
+          onBack={() => navigateTo("storefront")}
+        />
+      );
+    }
+
     return (
       <Suspense
         fallback={
@@ -2743,9 +2786,8 @@ export default function App() {
             <div><b>Shop</b><a href="#shop">Makeup</a><a href="#shop">Skincare</a><a href="#shop">Body Care</a></div>
             <div><b>About</b><a href="#about">Our Story</a><a href="#journal">Journal</a><a href="#">Sustainability</a></div>
             <div>
-              <b>Maison & Staff</b>
-              <button type="button" className="footer-action-link" onClick={() => navigateTo("account")}>Member Login</button>
-              <button type="button" className="footer-action-link" onClick={() => navigateTo("admin")}>Admin Studio</button>
+              <b>Maison Sanctuary</b>
+              <button type="button" className="footer-action-link" onClick={() => navigateTo("account")}>Member Sanctuary</button>
               <a href="#">Concierge</a>
             </div>
           </div>

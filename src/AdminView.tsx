@@ -33,6 +33,7 @@ import {
   FileText,
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./lib/supabase";
+import { getAdminSession, clearAdminSession } from "./lib/auth";
 import {
   normalizeCategory,
   CATEGORY_OPTIONS,
@@ -216,6 +217,7 @@ const ASSET_LIBRARY_PICKER = [
 ];
 
 export default function AdminView({ onBack }: AdminViewProps) {
+  const [adminSession, setAdminSessionState] = useState(() => getAdminSession());
   const [activeTab, setActiveTab] = useState<"orders" | "customers" | "inventory">("orders");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>(() => {
@@ -867,6 +869,116 @@ export default function AdminView({ onBack }: AdminViewProps) {
     return { totalRev, count, aov, processing, dispatched, delivered, customers: customersList.length };
   }, [orders, customersList]);
 
+  const handleLockConsole = () => {
+    clearAdminSession();
+    setAdminSessionState(null);
+    window.history.pushState({}, "", "/sheaura/login");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
+  if (!adminSession) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "radial-gradient(ellipse at 50% 20%, #2a140d 0%, #150906 60%, #0d0504 100%)",
+          color: "#fcf9f5",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "'Montserrat', sans-serif",
+          padding: "24px",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "460px",
+            background: "rgba(24, 11, 8, 0.9)",
+            border: "1px solid rgba(223, 184, 149, 0.3)",
+            borderRadius: "20px",
+            padding: "44px 36px",
+            boxShadow: "0 24px 60px rgba(0, 0, 0, 0.8)",
+          }}
+        >
+          <div
+            style={{
+              width: "60px",
+              height: "60px",
+              borderRadius: "50%",
+              background: "rgba(223, 184, 149, 0.15)",
+              border: "1px solid rgba(223, 184, 149, 0.4)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: "20px",
+            }}
+          >
+            <ShieldCheck size={32} style={{ color: "#dfb895" }} />
+          </div>
+          <h2
+            style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: "26px",
+              margin: "0 0 8px",
+              color: "#ffffff",
+            }}
+          >
+            Restricted Studio Console
+          </h2>
+          <p
+            style={{
+              fontSize: "12px",
+              color: "#dfb895",
+              lineHeight: 1.6,
+              marginBottom: "28px",
+            }}
+          >
+            Administrative privileges are strictly verified. Please authenticate via the dedicated gateway at <b>sheaura/login</b>.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <button
+              onClick={() => {
+                window.history.pushState({}, "", "/sheaura/login");
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }}
+              style={{
+                background: "linear-gradient(135deg, #dfb895 0%, #b88647 100%)",
+                color: "#21130f",
+                border: "none",
+                borderRadius: "12px",
+                padding: "14px",
+                fontSize: "12px",
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+              }}
+            >
+              Authenticate via /sheaura/login
+            </button>
+            <button
+              onClick={onBack}
+              style={{
+                background: "transparent",
+                color: "#a89085",
+                border: "1px solid rgba(223, 184, 149, 0.2)",
+                borderRadius: "12px",
+                padding: "12px",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Return to Public Boutique
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-console-root" style={{ minHeight: "100vh", background: "#f8f0e5", color: "#21130f", fontFamily: "'Montserrat', sans-serif" }}>
       {/* Top Banner Notice */}
@@ -997,6 +1109,28 @@ export default function AdminView({ onBack }: AdminViewProps) {
             title="Refresh Data"
           >
             <RefreshCw size={14} className={loading ? "spin-icon" : ""} />
+          </button>
+
+          <button
+            onClick={handleLockConsole}
+            style={{
+              background: "rgba(125, 38, 22, 0.08)",
+              border: "1px solid rgba(125, 38, 22, 0.25)",
+              color: "#7d2616",
+              borderRadius: "999px",
+              padding: "7px 14px",
+              fontSize: "11px",
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+            title="Securely Lock Administrative Studio"
+          >
+            <ShieldCheck size={13} />
+            <span>Lock Studio</span>
           </button>
         </div>
       </header>

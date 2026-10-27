@@ -21,7 +21,13 @@ export const corsPolicy = cors({
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "x-admin-key",
+    "X-Admin-Key",
+  ],
 });
 
 // General API Rate Limiting (120 req / minute per IP)
@@ -41,3 +47,13 @@ export const checkoutLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Too many checkout attempts. Please try again shortly." },
 });
+
+// High-Security Rate Limiting for Administrative Authentication (5 attempts / 15 minutes)
+export const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many administrative login attempts. Gateway locked for 15 minutes." },
+});
+
