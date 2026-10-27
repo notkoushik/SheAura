@@ -50,8 +50,8 @@ test.describe("Storefront Custom Product & Multi-Image Gallery Suite", () => {
     // Wait for Admin Console to open
     await expect(page.locator(".admin-console-root")).toBeVisible({ timeout: 15000 });
 
-    // Switch to Catalog & Inventory tab
-    await page.click("button:has-text('Catalog & Inventory')");
+    // Switch to Creations / Catalog tab
+    await page.locator("button:has-text('Creations'), button:has-text('Catalog & Inventory')").first().click();
     await page.waitForTimeout(400);
 
     // Open Add New Creation modal

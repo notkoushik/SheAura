@@ -226,49 +226,59 @@ export default function CartView({
       })),
     };
 
-    // Insert directly into Supabase orders table for instant live sync across Admin & Customer Account
+    const orderPayload = {
+      id: serverOrderId,
+      client_name: customerFullName,
+      customer_name: customerFullName,
+      client_email: customerEmailAddr,
+      customer_email: customerEmailAddr,
+      client_phone: customerPhoneNum,
+      customer_phone: customerPhoneNum,
+      shipping_address: fullShippingAddr,
+      items: cartItems.map((item) => ({
+        productId: item.product.slug || item.product.id || item.product.name,
+        name: item.product.name,
+        shade: item.selectedShade || item.product.name.split(" ").slice(0, 2).join(" "),
+        quantity: item.quantity,
+        unitPrice: item.product.price,
+        itemTotal: item.product.price * item.quantity,
+        image: item.product.image,
+      })),
+      items_count: cartItems.reduce((acc, i) => acc + i.quantity, 0),
+      total_amount: `₹${grandTotal.toLocaleString("en-IN")}`,
+      subtotal: subtotal,
+      discount: discount,
+      shipping_fee: shippingFee,
+      tax_amount: gstAmount,
+      total_price: grandTotal,
+      currency: "INR",
+      payment_method: paymentMethod,
+      payment_status: paymentMethod === "cod" ? "awaiting_delivery" : "paid",
+      status: "processing",
+      tracking_number: generatedTracking,
+      eta: "Arriving in 2-3 Business Days",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // 1. Insert directly into Supabase orders table for instant live sync
     if (isSupabaseConfigured) {
       try {
-        await supabase.from("orders").insert([
-          {
-            id: serverOrderId,
-            client_name: customerFullName,
-            customer_name: customerFullName,
-            client_email: customerEmailAddr,
-            customer_email: customerEmailAddr,
-            client_phone: customerPhoneNum,
-            customer_phone: customerPhoneNum,
-            shipping_address: fullShippingAddr,
-            items: cartItems.map((item) => ({
-              productId: item.product.slug || item.product.id || item.product.name,
-              name: item.product.name,
-              shade: item.selectedShade || item.product.name.split(" ").slice(0, 2).join(" "),
-              quantity: item.quantity,
-              unitPrice: item.product.price,
-              itemTotal: item.product.price * item.quantity,
-              image: item.product.image,
-            })),
-            items_count: cartItems.reduce((acc, i) => acc + i.quantity, 0),
-            total_amount: `₹${grandTotal.toLocaleString("en-IN")}`,
-            subtotal: subtotal,
-            discount: discount,
-            shipping_fee: shippingFee,
-            tax_amount: gstAmount,
-            total_price: grandTotal,
-            currency: "INR",
-            payment_method: paymentMethod,
-            payment_status: paymentMethod === "cod" ? "awaiting_delivery" : "paid",
-            status: "processing",
-            tracking_number: generatedTracking,
-            eta: "Arriving in 2-3 Business Days",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ]);
+        await supabase.from("orders").insert([orderPayload]);
       } catch (dbErr) {
         console.warn("[CartView] Direct Supabase order insert fallback:", dbErr);
       }
     }
+
+    // 2. Persist to shared live orders cache ensuring cross-view instant sync
+    try {
+      const existingRaw = localStorage.getItem("sheaura_live_orders_v2");
+      const existing = existingRaw ? JSON.parse(existingRaw) : [];
+      localStorage.setItem("sheaura_live_orders_v2", JSON.stringify([orderPayload, ...existing.filter((o: any) => o.id !== orderPayload.id)]));
+    } catch {}
+
+    // 3. Dispatch real-time live event for Admin Panel and Analytics
+    window.dispatchEvent(new CustomEvent("sheaura:order-created", { detail: orderPayload }));
 
     recordUserOrder(newOrder, {
       fullName: customerFullName,

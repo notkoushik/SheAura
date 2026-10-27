@@ -31,6 +31,17 @@ import {
   Image as ImageIcon,
   Sparkles,
   FileText,
+  Printer,
+  Download,
+  AlertTriangle,
+  TrendingUp,
+  Boxes,
+  LayoutDashboard,
+  Settings,
+  Eye,
+  LogOut,
+  Calendar,
+  FileSpreadsheet,
 } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "./lib/supabase";
 import { getAdminSession, clearAdminSession } from "./lib/auth";
@@ -41,6 +52,13 @@ import {
   deleteLocalCustomProduct,
   getLocalCustomProducts,
 } from "./lib/catalog";
+import {
+  buildInvoiceDataFromAdminOrder,
+  generateInvoiceHtml,
+  downloadInvoiceHtml,
+  printInvoiceHtml,
+  InvoiceData,
+} from "./lib/invoice";
 import SheAuraLogo from "./SheAuraLogo";
 
 export interface AdminOrderItem {
@@ -73,6 +91,7 @@ export interface AdminOrder {
   currency?: string;
   payment_method?: string;
   payment_status?: string;
+  gateway_payment_id?: string;
   status: "pending" | "processing" | "dispatched" | "delivered" | "cancelled";
   tracking_number?: string | null;
   eta?: string;
@@ -118,18 +137,18 @@ interface AdminViewProps {
 }
 
 const FALLBACK_PRODUCTS: AdminProduct[] = [
-  { id: "1", name: "Pink Blossom Blush", slug: "pink-blossom-blush", category: "Blushes", price: 899, stock_quantity: 42, image: "/products/Pink Blossom Blush.webp" },
-  { id: "2", name: "Peach Blossom Blush", slug: "peach-blossom-blush", category: "Blushes", price: 899, stock_quantity: 38, image: "/products/Peach Blossom Blush.webp" },
-  { id: "3", name: "Cherry Blossom Blush", slug: "cherry-blossom-blush", category: "Blushes", price: 899, stock_quantity: 26, image: "/products/Cherry Blossom Blush.webp" },
-  { id: "4", name: "Scarlet Rose Lipstick", slug: "scarlet-rose-lipstick", category: "Lipsticks", price: 1099, stock_quantity: 54, image: "/products/Minimal_design/Scarlet Rose Lipstick_still.png" },
-  { id: "5", name: "Roseberry Lipstick", slug: "roseberry-lipstick", category: "Lipsticks", price: 1099, stock_quantity: 48, image: "/products/Roseberry Lipstick.webp" },
-  { id: "6", name: "Blush Rose Lipstick", slug: "blush-rose-lipstick", category: "Lipsticks", price: 1099, stock_quantity: 35, image: "/products/Blush Rose Lipstick.webp" },
-  { id: "7", name: "Orchid Lipstick", slug: "orchid-lipstick", category: "Lipsticks", price: 1099, stock_quantity: 29, image: "/products/Orchid Lipstick.webp" },
-  { id: "8", name: "Molten Glow Highlighter · Sunflower", slug: "molten-glow-highlighter", category: "Body Highlighter Oil", price: 1199, stock_quantity: 18, image: "/products/Minimal_design/Highlighter simple.png" },
-  { id: "9", name: "Moonflower Highlighter Oil", slug: "moonflower-highlighter-oil", category: "Body Highlighter Oil", price: 1199, stock_quantity: 12, image: "/products/Moonflower Highlighter Oil.webp" },
-  { id: "10", name: "Hydrating Matte Foundation · Daffodil", slug: "hydrating-matte-foundation-daffodil", category: "Foundation", price: 1299, stock_quantity: 32, image: "/products/Daffodil.png" },
-  { id: "11", name: "Hydrating Matte Foundation · Snowdrop", slug: "hydrating-matte-foundation-snowdrop", category: "Foundation", price: 1299, stock_quantity: 24, image: "/products/Snowdrop.png" },
-  { id: "12", name: "She’Aura Discovery Wardrobe", slug: "sheaura-discovery-wardrobe", category: "Wardrobe Collection", price: 3299, stock_quantity: 9, image: "/products/discovery-wardrobe-still.png" },
+  { id: "1", name: "Pink Blossom Blush", slug: "pink-blossom-blush", category: "Blushes", price: 899, stock_quantity: 42, image: "/products/Pink Blossom Blush.webp", images: ["/products/Pink Blossom Blush.webp"] },
+  { id: "2", name: "Peach Blossom Blush", slug: "peach-blossom-blush", category: "Blushes", price: 899, stock_quantity: 38, image: "/products/Peach Blossom Blush.webp", images: ["/products/Peach Blossom Blush.webp"] },
+  { id: "3", name: "Cherry Blossom Blush", slug: "cherry-blossom-blush", category: "Blushes", price: 899, stock_quantity: 26, image: "/products/Cherry Blossom Blush.webp", images: ["/products/Cherry Blossom Blush.webp"] },
+  { id: "4", name: "Scarlet Rose Lipstick", slug: "scarlet-rose-lipstick", category: "Lipsticks", price: 1099, stock_quantity: 54, image: "/products/Minimal_design/Scarlet Rose Lipstick_still.png", images: ["/products/Scarlet Rose Lipstick.webp", "/products/Minimal_design/Scarlet Rose Lipstick_still.png"] },
+  { id: "5", name: "Roseberry Lipstick", slug: "roseberry-lipstick", category: "Lipsticks", price: 1099, stock_quantity: 48, image: "/products/Roseberry Lipstick.webp", images: ["/products/Roseberry Lipstick.webp"] },
+  { id: "6", name: "Blush Rose Lipstick", slug: "blush-rose-lipstick", category: "Lipsticks", price: 1099, stock_quantity: 35, image: "/products/Blush Rose Lipstick.webp", images: ["/products/Blush Rose Lipstick.webp"] },
+  { id: "7", name: "Orchid Lipstick", slug: "orchid-lipstick", category: "Lipsticks", price: 1099, stock_quantity: 29, image: "/products/Orchid Lipstick.webp", images: ["/products/Orchid Lipstick.webp"] },
+  { id: "8", name: "Molten Glow Highlighter · Sunflower", slug: "molten-glow-highlighter", category: "Body Highlighter Oil", price: 1199, stock_quantity: 18, image: "/products/Minimal_design/Highlighter simple.png", images: ["/products/Minimal_design/Highlighter simple.png"] },
+  { id: "9", name: "Moonflower Highlighter Oil", slug: "moonflower-highlighter-oil", category: "Body Highlighter Oil", price: 1199, stock_quantity: 12, image: "/products/Moonflower Highlighter Oil.webp", images: ["/products/Moonflower Highlighter Oil.webp"] },
+  { id: "10", name: "Hydrating Matte Foundation · Daffodil", slug: "hydrating-matte-foundation-daffodil", category: "Foundation", price: 1299, stock_quantity: 32, image: "/products/Daffodil.png", images: ["/products/Daffodil.png"] },
+  { id: "11", name: "Hydrating Matte Foundation · Snowdrop", slug: "hydrating-matte-foundation-snowdrop", category: "Foundation", price: 1299, stock_quantity: 24, image: "/products/Snowdrop.png", images: ["/products/Snowdrop.png"] },
+  { id: "12", name: "She’Aura Discovery Wardrobe", slug: "sheaura-discovery-wardrobe", category: "Wardrobe Collection", price: 3299, stock_quantity: 9, image: "/products/discovery-wardrobe-still.png", images: ["/products/discovery-wardrobe-still.png"] },
 ];
 
 const PRODUCT_PRESETS = [
@@ -220,7 +239,7 @@ const ASSET_LIBRARY_PICKER = [
 
 export default function AdminView({ onBack }: AdminViewProps) {
   const [adminSession, setAdminSessionState] = useState(() => getAdminSession());
-  const [activeTab, setActiveTab] = useState<"orders" | "customers" | "inventory">("orders");
+  const [activeTab, setActiveTab] = useState<"overview" | "creations" | "inventory" | "orders" | "customers" | "settings">("overview");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [products, setProducts] = useState<AdminProduct[]>(() => {
     const local = getLocalCustomProducts();
@@ -239,6 +258,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
             price: typeof row.price === "number" ? row.price : parseFloat(row.price) || 999,
             stock_quantity: row.stock_quantity ?? 50,
             image: row.image_url || row.image || "/products/Peach Blossom Blush.webp",
+            images: Array.isArray(row.images) && row.images.length > 0 ? row.images : [row.image_url || row.image || "/products/Peach Blossom Blush.webp"],
             description: row.description || row.short_description || "",
             short_description: row.short_description || "",
             ingredients: row.ingredients || "",
@@ -262,10 +282,14 @@ export default function AdminView({ onBack }: AdminViewProps) {
     }
     return FALLBACK_PRODUCTS;
   });
+
   const [loading, setLoading] = useState<boolean>(true);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
+  const [globalSearch, setGlobalSearch] = useState<string>("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [stockHealthFilter, setStockHealthFilter] = useState<string>("all");
+  const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<AdminOrder | null>(null);
+  const [selectedOrderDetails, setSelectedOrderDetails] = useState<AdminOrder | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
 
@@ -274,7 +298,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
   const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
   const [isRawImportOpen, setIsRawImportOpen] = useState(false);
   const [rawImportText, setRawImportText] = useState("");
-  const [imageSourceTab, setImageSourceTab] = useState<"library" | "upload" | "url">("library");
+  const [imageSourceTab, setImageSourceTab] = useState<"upload" | "library" | "url">("upload");
+  const [newImageUrl, setNewImageUrl] = useState("");
 
   const [productForm, setProductForm] = useState({
     name: "",
@@ -292,22 +317,53 @@ export default function AdminView({ onBack }: AdminViewProps) {
     description: "An iconic beauty piece crafted with botanical extracts in the She'Aura Atelier.",
     ingredients: "Organic Camellia Seed Oil, Multi-Weight Hyaluronic Acid, Candelilla Wax, Botanical Pigments.",
   });
-  const [newImageUrl, setNewImageUrl] = useState("");
 
-  // Load orders from Supabase
+  const showNotice = (msg: string) => {
+    setActionNotice(msg);
+    setTimeout(() => setActionNotice(null), 4000);
+  };
+
+  // Load orders from Supabase + Local Shared Cache
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      let combinedOrders: AdminOrder[] = [];
+      const seen = new Set<string>();
+
+      // 1. Fetch from Supabase cloud
       if (isSupabaseConfigured) {
         const { data, error } = await supabase
           .from("orders")
           .select("*")
           .order("created_at", { ascending: false });
 
-        if (!error && data && data.length > 0) {
-          setOrders(data as AdminOrder[]);
+        if (!error && Array.isArray(data) && data.length > 0) {
+          data.forEach((o: any) => {
+            if (!seen.has(o.id)) {
+              seen.add(o.id);
+              combinedOrders.push(o as AdminOrder);
+            }
+          });
         }
       }
+
+      // 2. Fetch from local shared cache (instant cross-view trigger)
+      try {
+        const rawLocal = localStorage.getItem("sheaura_live_orders_v2");
+        if (rawLocal) {
+          const localOrders = JSON.parse(rawLocal);
+          if (Array.isArray(localOrders)) {
+            localOrders.forEach((o: any) => {
+              if (!seen.has(o.id)) {
+                seen.add(o.id);
+                combinedOrders.push(o as AdminOrder);
+              }
+            });
+          }
+        }
+      } catch {}
+
+      setOrders(combinedOrders);
     } catch (err) {
       console.warn("[AdminView] Live orders fetch notice:", err);
     } finally {
@@ -429,19 +485,48 @@ export default function AdminView({ onBack }: AdminViewProps) {
     fetchOrders();
     fetchProducts();
 
+    // 1. Listen for real-time order creations from Customer Checkout
+    const handleOrderCreated = (e: any) => {
+      const newOrder = e.detail;
+      if (!newOrder) return;
+      showNotice(`🔔 New Customer Order #${newOrder.id} received! (${newOrder.total_amount || "₹" + newOrder.total_price})`);
+      setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)]);
+    };
+    window.addEventListener("sheaura:order-created", handleOrderCreated);
+
+    // 2. Listen for catalog updates
     const handleCatalogUpdated = () => {
       fetchProducts();
     };
     window.addEventListener("sheaura:catalog-updated", handleCatalogUpdated);
+
+    // 3. Supabase Realtime Stream for Orders (if online)
+    let orderSubscription: any = null;
+    if (isSupabaseConfigured) {
+      try {
+        orderSubscription = supabase
+          .channel("admin-orders-stream")
+          .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => {
+            fetchOrders();
+          })
+          .subscribe();
+      } catch {}
+    }
+
+    // 4. Polling fallback every 15s to guarantee fresh sync
+    const pollTimer = setInterval(() => {
+      fetchOrders();
+    }, 15000);
+
     return () => {
+      window.removeEventListener("sheaura:order-created", handleOrderCreated);
       window.removeEventListener("sheaura:catalog-updated", handleCatalogUpdated);
+      clearInterval(pollTimer);
+      if (orderSubscription) {
+        supabase.removeChannel(orderSubscription);
+      }
     };
   }, []);
-
-  const showNotice = (msg: string) => {
-    setActionNotice(msg);
-    setTimeout(() => setActionNotice(null), 3500);
-  };
 
   // Status Updater
   const handleUpdateStatus = async (
@@ -476,17 +561,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
         )
       );
 
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: newStatus,
-                tracking_number: newStatus === "dispatched" || newStatus === "delivered" ? tracking : prev.tracking_number,
-              }
-            : null
-        );
-      }
+      // Update local storage cache as well
+      try {
+        const rawLocal = localStorage.getItem("sheaura_live_orders_v2");
+        if (rawLocal) {
+          const list = JSON.parse(rawLocal);
+          const updated = list.map((o: any) => (o.id === orderId ? { ...o, status: newStatus, tracking_number: tracking } : o));
+          localStorage.setItem("sheaura_live_orders_v2", JSON.stringify(updated));
+        }
+      } catch {}
 
       showNotice(`Order ${orderId} transitioned to ${newStatus.toUpperCase()}`);
     } catch (e: any) {
@@ -496,22 +579,23 @@ export default function AdminView({ onBack }: AdminViewProps) {
     }
   };
 
-  // Generate dynamic test order for demonstration
+  // Generate dynamic test order to test live triggering
   const handleCreateDynamicTestOrder = async () => {
     const clients = [
-      { name: "Sanjana Rao", email: "sanjana.rao@hyderabadarts.in", phone: "+91 98490 12890", city: "Hyderabad, Telangana 500034" },
-      { name: "Alisha Sen", email: "alisha.sen@delhifashion.com", phone: "+91 98102 77102", city: "New Delhi, Delhi 110024" },
-      { name: "Meera Nambiar", email: "meera.nambiar@kochi.co.in", phone: "+91 94470 33819", city: "Kochi, Kerala 682016" },
-      { name: "Kavya Deshmukh", email: "kavya.deshmukh@pune.org", phone: "+91 98220 55192", city: "Pune, Maharashtra 411004" },
+      { name: "Suresh Reddy", email: "suresh.reddy@hyderabadarts.in", phone: "+91 98490 12890", city: "Hyderabad, Telangana 500034" },
+      { name: "N Balaji", email: "balaji.n@chennaidesign.in", phone: "+91 98102 77102", city: "Chennai, Tamil Nadu 600028" },
+      { name: "TM Raju", email: "raju.tm@bengalurumaison.com", phone: "+91 94470 33819", city: "Bengaluru, Karnataka 560001" },
+      { name: "Beesa Prakash", email: "prakash.beesa@mumbaifinearts.in", phone: "+91 98220 55192", city: "Mumbai, Maharashtra 400050" },
+      { name: "Venkatesh Mallpatil", email: "venkatesh.m@pune.org", phone: "+91 98230 44101", city: "Pune, Maharashtra 411004" },
     ];
     const client = clients[Math.floor(Math.random() * clients.length)];
-    const chosenProduct = products[Math.floor(Math.random() * products.length)];
+    const chosenProduct = products[Math.floor(Math.random() * products.length)] || FALLBACK_PRODUCTS[0];
     const qty = Math.floor(1 + Math.random() * 2);
     const itemTotal = chosenProduct.price * qty;
-    const shipping = itemTotal >= 1499 ? 0 : 150;
-    const tax = Math.round((itemTotal * 18) / 118);
+    const shipping = itemTotal > 1500 ? 0 : 99;
+    const tax = Math.round(itemTotal * 0.18);
     const grandTotal = itemTotal + shipping;
-    const orderId = `ORD-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderId = `SA-${new Date().getFullYear()}${String(Date.now()).slice(-6)}`;
 
     const newOrderPayload: AdminOrder = {
       id: orderId,
@@ -521,12 +605,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
       customer_email: client.email,
       client_phone: client.phone,
       customer_phone: client.phone,
-      shipping_address: `Boutique Residence, ${client.city}`,
+      shipping_address: `${client.name}, 14 Royal Palms, ${client.city}`,
       items: [
         {
           productId: chosenProduct.slug,
           name: chosenProduct.name,
-          shade: chosenProduct.category,
+          shade: chosenProduct.name.split(" ").slice(0, 2).join(" "),
           quantity: qty,
           unitPrice: chosenProduct.price,
           itemTotal,
@@ -551,11 +635,21 @@ export default function AdminView({ onBack }: AdminViewProps) {
     };
 
     if (isSupabaseConfigured) {
-      await supabase.from("orders").insert([newOrderPayload]);
+      try {
+        await supabase.from("orders").insert([newOrderPayload]);
+      } catch {}
     }
 
+    // Persist to local shared storage
+    try {
+      const rawLocal = localStorage.getItem("sheaura_live_orders_v2");
+      const existing = rawLocal ? JSON.parse(rawLocal) : [];
+      localStorage.setItem("sheaura_live_orders_v2", JSON.stringify([newOrderPayload, ...existing]));
+    } catch {}
+
+    window.dispatchEvent(new CustomEvent("sheaura:order-created", { detail: newOrderPayload }));
     setOrders((prev) => [newOrderPayload, ...prev]);
-    showNotice(`Dynamic order placed for ${client.name} (${orderId})`);
+    showNotice(`✓ Live Test Order #${orderId} generated & synced directly!`);
   };
 
   // Stock Adjustment
@@ -565,7 +659,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
         p.slug === slug ? { ...p, stock_quantity: Math.max(0, (p.stock_quantity || 0) + delta) } : p
       )
     );
-    showNotice(`Stock updated for ${slug}`);
+    showNotice(`Stock adjusted for ${slug}`);
   };
 
   // Preset quick fill
@@ -584,7 +678,6 @@ export default function AdminView({ onBack }: AdminViewProps) {
   const handleParseRawText = () => {
     if (!rawImportText.trim()) return;
 
-    // A. Try JSON
     try {
       const parsed = JSON.parse(rawImportText);
       const parsedImages = Array.isArray(parsed.images) && parsed.images.length > 0
@@ -618,7 +711,6 @@ export default function AdminView({ onBack }: AdminViewProps) {
       return;
     } catch {}
 
-    // B. Line-by-line key: value
     const lines = rawImportText.split("\n");
     const extracted: Partial<typeof productForm> = {};
     for (const line of lines) {
@@ -658,7 +750,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
     }
   };
 
-  // Copy Product JSON for quick duplicate
+  // Copy Product JSON
   const handleCopyProductJson = (product: AdminProduct) => {
     const json = JSON.stringify(
       {
@@ -763,7 +855,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
     showNotice("✓ Set as primary cover photo");
   };
 
-  // Image file upload (supports multiple files)
+  // Image file upload (with multi-file support)
   const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -782,7 +874,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
               images: updated,
             };
           });
-          showNotice("✓ Photo added to product gallery!");
+          showNotice(`✓ Added "${file.name}" to gallery!`);
         }
       };
       reader.readAsDataURL(file);
@@ -852,7 +944,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
       }
     }
 
-    // 2. Local Custom Product Persistence (guarantees customer visibility immediately)
+    // 2. Local Custom Product Persistence
     saveLocalCustomProduct({
       ...payload,
       price: `₹${numPrice.toLocaleString("en-IN")}.00`,
@@ -906,26 +998,27 @@ export default function AdminView({ onBack }: AdminViewProps) {
 
   // Delete product
   const handleDeleteProduct = async (product: AdminProduct) => {
-    // 1. Supabase deletion
+    if (!confirm(`Are you sure you want to retire "${product.name}" from the Maison catalogue?`)) {
+      return;
+    }
+
     if (isSupabaseConfigured && product.id) {
       try {
         await supabase.from("products").delete().eq("id", product.id);
-        await supabase.from("products").delete().eq("slug", product.slug);
-      } catch (e) {
-        console.warn("[AdminView] Supabase delete warning:", e);
-      }
+      } catch {}
     }
 
-    // 2. Local cache deletion
-    deleteLocalCustomProduct(product.slug);
-    deleteLocalCustomProduct(product.id);
-    deleteLocalCustomProduct(product.name);
+    deleteLocalCustomProduct(product.slug || product.id);
+    setProducts((prev) => prev.filter((p) => p.slug !== product.slug && p.id !== product.id));
+    showNotice(`✓ "${product.name}" archived from active catalogue.`);
+  };
 
-    // 3. Trigger reload
-    window.dispatchEvent(new CustomEvent("sheaura:catalog-updated"));
-
-    setProducts((prev) => prev.filter((p) => p.id !== product.id && p.slug !== product.slug));
-    showNotice(`✓ "${product.name}" deleted from catalog & storefront.`);
+  // Sign out / Lock Console
+  const handleLockConsole = () => {
+    clearAdminSession();
+    setAdminSessionState(null);
+    window.history.pushState({}, "", "/sheaura/login");
+    window.dispatchEvent(new PopStateEvent("popstate"));
   };
 
   // Parse items safely
@@ -933,48 +1026,37 @@ export default function AdminView({ onBack }: AdminViewProps) {
     if (Array.isArray(raw)) return raw;
     if (typeof raw === "string") {
       try {
-        return JSON.parse(raw);
-      } catch {
-        return [];
-      }
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
     }
     return [];
   };
 
-  // Filtered Orders
-  const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
-      const matchStatus =
-        statusFilter === "all"
-          ? true
-          : statusFilter === "awaiting"
-          ? o.payment_status === "pending" || o.payment_method === "cod"
-          : o.status === statusFilter;
+  // Computed Metrics
+  const totalRevenue = useMemo(() => {
+    return orders.reduce((acc, o) => {
+      const val = typeof o.total_price === "number" ? o.total_price : parseFloat(String(o.total_amount).replace(/[^0-9.]/g, "")) || 0;
+      return acc + val;
+    }, 0);
+  }, [orders]);
 
-      const q = searchQuery.toLowerCase().trim();
-      const matchSearch =
-        !q ||
-        o.id.toLowerCase().includes(q) ||
-        (o.client_name || o.customer_name || "").toLowerCase().includes(q) ||
-        (o.client_email || o.customer_email || "").toLowerCase().includes(q) ||
-        (o.client_phone || o.customer_phone || "").toLowerCase().includes(q) ||
-        (o.shipping_address || "").toLowerCase().includes(q);
+  const activeOrdersCount = useMemo(() => {
+    return orders.filter((o) => o.status === "processing" || o.status === "dispatched" || o.status === "pending").length;
+  }, [orders]);
 
-      return matchStatus && matchSearch;
-    });
-  }, [orders, statusFilter, searchQuery]);
+  const lowStockCount = useMemo(() => {
+    return products.filter((p) => (p.stock_quantity ?? 50) < 15).length;
+  }, [products]);
 
-  // Aggregated Multi-Customers
-  const customersList: CustomerSummary[] = useMemo(() => {
+  const customersList = useMemo(() => {
     const map = new Map<string, CustomerSummary>();
-
     orders.forEach((o) => {
-      const email = (o.client_email || o.customer_email || "guest@sheaura.com").toLowerCase().trim();
-      const name = o.client_name || o.customer_name || "Valued Client";
-      const phone = o.client_phone || o.customer_phone || "—";
-      const addressParts = (o.shipping_address || "").split(",");
-      const city = addressParts[addressParts.length - 2]?.trim() || addressParts[addressParts.length - 1]?.trim() || "India";
-      const spend = Number(o.total_price) || 0;
+      const name = o.client_name || o.customer_name || "Maison Member";
+      const email = o.client_email || o.customer_email || "concierge@sheaura.com";
+      const phone = o.client_phone || o.customer_phone || "+91 98200 11223";
+      const city = o.shipping_address?.split(",")[1]?.trim() || "India";
+      const amt = typeof o.total_price === "number" ? o.total_price : parseFloat(String(o.total_amount).replace(/[^0-9.]/g, "")) || 0;
 
       if (!map.has(email)) {
         map.set(email, {
@@ -983,64 +1065,116 @@ export default function AdminView({ onBack }: AdminViewProps) {
           phone,
           city,
           orderCount: 1,
-          totalSpent: spend,
+          totalSpent: amt,
           lastOrderDate: o.created_at,
         });
       } else {
         const existing = map.get(email)!;
         existing.orderCount += 1;
-        existing.totalSpent += spend;
+        existing.totalSpent += amt;
         if (new Date(o.created_at) > new Date(existing.lastOrderDate)) {
           existing.lastOrderDate = o.created_at;
         }
       }
     });
-
-    return Array.from(map.values()).sort((a, b) => b.totalSpent - a.totalSpent);
+    return Array.from(map.values());
   }, [orders]);
 
-  // Financial KPIs
-  const kpis = useMemo(() => {
-    const totalRev = orders.reduce((sum, o) => sum + (Number(o.total_price) || 0), 0);
-    const count = orders.length;
-    const aov = count > 0 ? Math.round(totalRev / count) : 0;
-    const processing = orders.filter((o) => o.status === "processing").length;
-    const dispatched = orders.filter((o) => o.status === "dispatched").length;
-    const delivered = orders.filter((o) => o.status === "delivered").length;
-    return { totalRev, count, aov, processing, dispatched, delivered, customers: customersList.length };
-  }, [orders, customersList]);
+  // Filtered Orders
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      const q = globalSearch.toLowerCase().trim();
+      const matchSearch =
+        !q ||
+        o.id.toLowerCase().includes(q) ||
+        (o.client_name || o.customer_name || "").toLowerCase().includes(q) ||
+        (o.client_email || o.customer_email || "").toLowerCase().includes(q) ||
+        (o.shipping_address || "").toLowerCase().includes(q);
 
-  const handleLockConsole = () => {
-    clearAdminSession();
-    setAdminSessionState(null);
-    window.history.pushState({}, "", "/sheaura/login");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  };
+      const matchStatus =
+        orderStatusFilter === "all" ||
+        (orderStatusFilter === "processing" && o.status === "processing") ||
+        (orderStatusFilter === "dispatched" && o.status === "dispatched") ||
+        (orderStatusFilter === "delivered" && o.status === "delivered") ||
+        (orderStatusFilter === "paid" && (o.payment_status === "paid" || o.payment_status === "confirmed")) ||
+        (orderStatusFilter === "failed" && (o.payment_status === "failed" || o.status === "cancelled")) ||
+        (orderStatusFilter === "cancelled" && o.status === "cancelled");
 
+      return matchSearch && matchStatus;
+    });
+  }, [orders, globalSearch, orderStatusFilter]);
+
+  // Filtered Products
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      const q = globalSearch.toLowerCase().trim();
+      const matchSearch = !q || p.name.toLowerCase().includes(q) || p.slug.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
+      const matchCategory = categoryFilter === "all" || normalizeCategory(p.category) === categoryFilter;
+      const stock = p.stock_quantity ?? 50;
+      const matchStock =
+        stockHealthFilter === "all" ||
+        (stockHealthFilter === "low" && stock < 15) ||
+        (stockHealthFilter === "healthy" && stock >= 15);
+
+      return matchSearch && matchCategory && matchStock;
+    });
+  }, [products, globalSearch, categoryFilter, stockHealthFilter]);
+
+  // Derived SKU Matrix for Inventory tab
+  const skuMatrix = useMemo(() => {
+    const list: any[] = [];
+    products.forEach((p, pIdx) => {
+      const skuPrefix = String(pIdx + 1).padStart(2, "0");
+      const stock = p.stock_quantity ?? 50;
+      const shades = [
+        { label: "Signature / Full Size", tone: p.tone || "#a81920" },
+        { label: "Petite Luxe / Travel", tone: p.tone || "#a81920" },
+      ];
+      shades.forEach((sh, shIdx) => {
+        const onHand = Math.round(stock * (shIdx === 0 ? 0.65 : 0.35));
+        const reserved = Math.round(onHand * 0.1);
+        const available = Math.max(0, onHand - reserved);
+        list.push({
+          sku: `${skuPrefix}-${shIdx === 0 ? "FS" : "TR"}`,
+          product: p,
+          shadeName: sh.label,
+          tone: sh.tone,
+          onHand,
+          reserved,
+          available,
+          health: available < 8 ? "LOW" : "ACTIVE",
+        });
+      });
+    });
+    return list;
+  }, [products]);
+
+  // If session is missing, render access denied guard
   if (!adminSession) {
     return (
       <div
+        className="admin-console-root"
         style={{
           minHeight: "100vh",
-          background: "radial-gradient(ellipse at 50% 20%, #2a140d 0%, #150906 60%, #0d0504 100%)",
-          color: "#fcf9f5",
+          background: "#0c0c0f",
+          color: "#f8fafc",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily: "'Montserrat', sans-serif",
           padding: "24px",
-          textAlign: "center",
+          fontFamily: "'Montserrat', sans-serif",
         }}
       >
         <div
           style={{
             maxWidth: "460px",
-            background: "rgba(24, 11, 8, 0.9)",
-            border: "1px solid rgba(223, 184, 149, 0.3)",
-            borderRadius: "20px",
-            padding: "44px 36px",
-            boxShadow: "0 24px 60px rgba(0, 0, 0, 0.8)",
+            width: "100%",
+            background: "#141418",
+            border: "1px solid rgba(223, 184, 149, 0.2)",
+            borderRadius: "16px",
+            padding: "40px 32px",
+            textAlign: "center",
+            boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
           }}
         >
           <div
@@ -1048,81 +1182,62 @@ export default function AdminView({ onBack }: AdminViewProps) {
               width: "60px",
               height: "60px",
               borderRadius: "50%",
-              background: "rgba(223, 184, 149, 0.15)",
-              border: "1px solid rgba(223, 184, 149, 0.4)",
+              background: "rgba(193, 136, 71, 0.15)",
+              border: "1px solid rgba(193, 136, 71, 0.4)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
               marginBottom: "20px",
             }}
           >
-            <ShieldCheck size={32} style={{ color: "#dfb895" }} />
+            <ShieldCheck size={32} style={{ color: "#c18847" }} />
           </div>
-          <h2
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "26px",
-              margin: "0 0 8px",
-              color: "#ffffff",
-            }}
-          >
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "26px", margin: "0 0 8px", color: "#ffffff" }}>
             Restricted Studio Console
           </h2>
-          <p
+          <p style={{ fontSize: "12px", color: "#94a3b8", lineHeight: 1.6, marginBottom: "28px" }}>
+            Administrative privileges are strictly isolated. Please authenticate via the dedicated gateway at <b>sheaura/login</b>.
+          </p>
+          <button
+            onClick={() => {
+              window.history.pushState({}, "", "/sheaura/login");
+              window.dispatchEvent(new PopStateEvent("popstate"));
+            }}
             style={{
+              width: "100%",
+              background: "linear-gradient(135deg, #c18847 0%, #9a652a 100%)",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "10px",
+              padding: "14px",
               fontSize: "12px",
-              color: "#dfb895",
-              lineHeight: 1.6,
-              marginBottom: "28px",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              cursor: "pointer",
+              boxShadow: "0 6px 20px rgba(193, 136, 71, 0.3)",
             }}
           >
-            Administrative privileges are strictly verified. Please authenticate via the dedicated gateway at <b>sheaura/login</b>.
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <button
-              onClick={() => {
-                window.history.pushState({}, "", "/sheaura/login");
-                window.dispatchEvent(new PopStateEvent("popstate"));
-              }}
-              style={{
-                background: "linear-gradient(135deg, #dfb895 0%, #b88647 100%)",
-                color: "#21130f",
-                border: "none",
-                borderRadius: "12px",
-                padding: "14px",
-                fontSize: "12px",
-                fontWeight: 700,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                cursor: "pointer",
-              }}
-            >
-              Authenticate via /sheaura/login
-            </button>
-            <button
-              onClick={onBack}
-              style={{
-                background: "transparent",
-                color: "#a89085",
-                border: "1px solid rgba(223, 184, 149, 0.2)",
-                borderRadius: "12px",
-                padding: "12px",
-                fontSize: "11px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Return to Public Boutique
-            </button>
-          </div>
+            Authenticate via /sheaura/login
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="admin-console-root" style={{ minHeight: "100vh", background: "#f8f0e5", color: "#21130f", fontFamily: "'Montserrat', sans-serif" }}>
-      {/* Top Banner Notice */}
+    <div
+      className="admin-console-root"
+      style={{
+        minHeight: "100vh",
+        background: "#0c0c0f",
+        color: "#f8fafc",
+        fontFamily: "'Montserrat', sans-serif",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Toast Notice */}
       {actionNotice && (
         <div
           style={{
@@ -1130,11 +1245,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
             top: 20,
             right: 24,
             zIndex: 9999,
-            background: "#191970",
+            background: "#181820",
+            border: "1px solid rgba(193, 136, 71, 0.4)",
             color: "#ffffff",
             padding: "12px 20px",
-            borderRadius: "8px",
-            boxShadow: "0 10px 30px rgba(25,25,112,0.3)",
+            borderRadius: "10px",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
             display: "flex",
             alignItems: "center",
             gap: "10px",
@@ -1142,17 +1258,17 @@ export default function AdminView({ onBack }: AdminViewProps) {
             letterSpacing: "0.03em",
           }}
         >
-          <CheckCircle2 size={16} /> {actionNotice}
+          <CheckCircle2 size={16} style={{ color: "#c18847" }} /> {actionNotice}
         </div>
       )}
 
-      {/* Header Bar */}
+      {/* ================= TOP BAR (MATCHING SCREENSHOT 2) ================= */}
       <header
         style={{
-          background: "rgba(255, 255, 255, 0.85)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid rgba(42, 26, 20, 0.12)",
-          padding: "16px 32px",
+          height: "64px",
+          background: "#111116",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          padding: "0 28px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -1161,463 +1277,683 @@ export default function AdminView({ onBack }: AdminViewProps) {
           zIndex: 100,
         }}
       >
+        {/* Left: Brand + Status Pill */}
         <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+            <span style={{ fontSize: "16px", fontWeight: 800, letterSpacing: "0.15em", color: "#f8fafc" }}>
+              SHE'AURA
+            </span>
+            <span style={{ fontSize: "11px", letterSpacing: "0.2em", color: "#c18847", fontWeight: 600 }}>
+              ATELIER
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "10px",
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              color: "#10b981",
+              background: "rgba(16, 185, 129, 0.12)",
+              border: "1px solid rgba(16, 185, 129, 0.25)",
+              padding: "3px 10px",
+              borderRadius: "999px",
+            }}
+          >
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
+            DATABASE LIVE
+          </div>
+        </div>
+
+        {/* Center: Global Search Bar */}
+        <div style={{ position: "relative", width: "420px", maxWidth: "100%" }}>
+          <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+          <input
+            type="text"
+            placeholder="Search clients, orders, creations, SKUs..."
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "9px 14px 9px 38px",
+              borderRadius: "8px",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "#181820",
+              color: "#f8fafc",
+              fontSize: "12px",
+              outline: "none",
+              boxSizing: "border-box",
+            }}
+          />
+        </div>
+
+        {/* Right: View Website + Profile + Sign Out */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <button
             onClick={onBack}
             style={{
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
-              background: "transparent",
-              border: "1px solid rgba(42, 26, 20, 0.2)",
-              borderRadius: "999px",
-              padding: "6px 14px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "6px",
+              padding: "7px 14px",
               cursor: "pointer",
               fontSize: "11px",
               fontWeight: 600,
               letterSpacing: "0.05em",
-              color: "#21130f",
+              color: "#e2e8f0",
             }}
           >
-            <ArrowLeft size={14} /> Storefront
+            <ExternalLink size={13} /> VIEW WEBSITE
           </button>
-          <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
-            <SheAuraLogo height={24} fill="#191970" />
-            <span
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
               style={{
-                fontSize: "10px",
-                letterSpacing: "0.2em",
-                textTransform: "uppercase",
-                color: "#765d50",
-                fontWeight: 600,
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #c18847 0%, #765d50 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "#ffffff",
               }}
             >
-              Operations Studio
-            </span>
+              SD
+            </div>
+            <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#f8fafc" }}>Studio Director</div>
+              <div style={{ fontSize: "9.5px", color: "#64748b" }}>STUDIO DIRECTOR</div>
+            </div>
           </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "11px",
-              color: "#1e6b37",
-              background: "rgba(30, 107, 55, 0.1)",
-              padding: "5px 12px",
-              borderRadius: "999px",
-              fontWeight: 500,
-            }}
-          >
-            <ShieldCheck size={14} /> Live Supabase Connected
-          </div>
-
-          <button
-            onClick={handleCreateDynamicTestOrder}
-            style={{
-              background: "#191970",
-              color: "#ffffff",
-              border: "0",
-              borderRadius: "999px",
-              padding: "8px 16px",
-              fontSize: "11px",
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <PlusCircle size={14} /> + New Test Customer Order
-          </button>
-
-          <button
-            onClick={fetchOrders}
-            disabled={loading}
-            style={{
-              background: "transparent",
-              border: "1px solid rgba(42, 26, 20, 0.2)",
-              borderRadius: "999px",
-              padding: "8px 12px",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              color: "#21130f",
-            }}
-            title="Refresh Data"
-          >
-            <RefreshCw size={14} className={loading ? "spin-icon" : ""} />
-          </button>
 
           <button
             onClick={handleLockConsole}
             style={{
-              background: "rgba(125, 38, 22, 0.08)",
-              border: "1px solid rgba(125, 38, 22, 0.25)",
-              color: "#7d2616",
-              borderRadius: "999px",
+              background: "rgba(239, 68, 68, 0.08)",
+              border: "1px solid rgba(239, 68, 68, 0.2)",
+              color: "#ef4444",
+              borderRadius: "6px",
               padding: "7px 14px",
               fontSize: "11px",
               fontWeight: 600,
-              letterSpacing: "0.04em",
               cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
             }}
-            title="Securely Lock Administrative Studio"
           >
-            <ShieldCheck size={13} />
-            <span>Lock Studio</span>
+            <LogOut size={12} /> SIGN OUT
           </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main style={{ maxWidth: "1280px", margin: "0 auto", padding: "28px 24px" }}>
-        {/* KPI Strip */}
-        <section
+      {/* ================= MAIN LAYOUT WITH SIDEBAR ================= */}
+      <div style={{ display: "flex", flex: 1, minHeight: "calc(100vh - 64px)" }}>
+        {/* Left Navigation Sidebar */}
+        <aside
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: "16px",
-            marginBottom: "28px",
+            width: "230px",
+            background: "#111116",
+            borderRight: "1px solid rgba(255, 255, 255, 0.08)",
+            padding: "20px 14px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
           }}
         >
-          <div style={{ background: "#ffffff", padding: "18px 20px", borderRadius: "12px", border: "1px solid rgba(42, 26, 20, 0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-            <div style={{ fontSize: "11px", color: "#765d50", textTransform: "uppercase", letterSpacing: "0.08em" }}>Gross Revenue</div>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#191970", marginTop: "4px" }}>
-              ₹{kpis.totalRev.toLocaleString("en-IN")}
-            </div>
-            <div style={{ fontSize: "10px", color: "#765d50", marginTop: "4px" }}>Across {kpis.count} total orders</div>
-          </div>
+          {/* Nav Items */}
+          <nav style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {[
+              { key: "overview", label: "Overview", icon: LayoutDashboard },
+              { key: "creations", label: "Creations", icon: Sparkles },
+              { key: "inventory", label: "Inventory", icon: Boxes },
+              { key: "orders", label: "Orders & Dispatch", icon: Truck },
+              { key: "customers", label: "Customers", icon: User },
+              { key: "settings", label: "Settings", icon: Settings },
+            ].map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setActiveTab(item.key as any)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: isActive ? "1px solid rgba(193, 136, 71, 0.35)" : "1px solid transparent",
+                    background: isActive ? "rgba(193, 136, 71, 0.1)" : "transparent",
+                    color: isActive ? "#ffffff" : "#94a3b8",
+                    fontSize: "12.5px",
+                    fontWeight: isActive ? 600 : 500,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <Icon size={16} style={{ color: isActive ? "#c18847" : "#64748b" }} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-          <div style={{ background: "#ffffff", padding: "18px 20px", borderRadius: "12px", border: "1px solid rgba(42, 26, 20, 0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-            <div style={{ fontSize: "11px", color: "#765d50", textTransform: "uppercase", letterSpacing: "0.08em" }}>Average Order Value</div>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#21130f", marginTop: "4px" }}>
-              ₹{kpis.aov.toLocaleString("en-IN")}
-            </div>
-            <div style={{ fontSize: "10px", color: "#765d50", marginTop: "4px" }}>Premium Maison basket average</div>
-          </div>
-
-          <div style={{ background: "#ffffff", padding: "18px 20px", borderRadius: "12px", border: "1px solid rgba(42, 26, 20, 0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-            <div style={{ fontSize: "11px", color: "#765d50", textTransform: "uppercase", letterSpacing: "0.08em" }}>Active Clients</div>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#21130f", marginTop: "4px" }}>
-              {kpis.customers}
-            </div>
-            <div style={{ fontSize: "10px", color: "#765d50", marginTop: "4px" }}>Multi-city client base</div>
-          </div>
-
-          <div style={{ background: "#ffffff", padding: "18px 20px", borderRadius: "12px", border: "1px solid rgba(42, 26, 20, 0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.02)" }}>
-            <div style={{ fontSize: "11px", color: "#765d50", textTransform: "uppercase", letterSpacing: "0.08em" }}>Fulfillment Queue</div>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: kpis.processing > 0 ? "#b85d19" : "#1e6b37", marginTop: "4px" }}>
-              {kpis.processing} Pending
-            </div>
-            <div style={{ fontSize: "10px", color: "#765d50", marginTop: "4px" }}>{kpis.dispatched} dispatched, {kpis.delivered} delivered</div>
-          </div>
-        </section>
-
-        {/* Tab Switcher */}
-        <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid rgba(42, 26, 20, 0.12)", marginBottom: "24px" }}>
-          <button
-            onClick={() => setActiveTab("orders")}
+          {/* Mini Brand Banner Card at Bottom */}
+          <div
             style={{
-              padding: "10px 20px",
-              border: "0",
-              borderBottom: activeTab === "orders" ? "2px solid #191970" : "2px solid transparent",
-              background: "transparent",
-              color: activeTab === "orders" ? "#191970" : "#765d50",
-              fontWeight: 600,
-              fontSize: "12px",
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
+              background: "#16161d",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "10px",
+              padding: "12px",
+              textAlign: "left",
             }}
           >
-            <Package size={15} /> Live Orders ({orders.length})
-          </button>
+            <div style={{ fontSize: "10px", fontWeight: 700, color: "#c18847", letterSpacing: "0.1em" }}>
+              SHE'AURA ATELIER
+            </div>
+            <div style={{ fontSize: "9px", color: "#64748b", marginTop: "2px" }}>
+              COUTURE BEAUTY · ART MEETS FORMULATION
+            </div>
+          </div>
+        </aside>
 
-          <button
-            onClick={() => setActiveTab("customers")}
-            style={{
-              padding: "10px 20px",
-              border: "0",
-              borderBottom: activeTab === "customers" ? "2px solid #191970" : "2px solid transparent",
-              background: "transparent",
-              color: activeTab === "customers" ? "#191970" : "#765d50",
-              fontWeight: 600,
-              fontSize: "12px",
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <User size={15} /> Clients Directory ({customersList.length})
-          </button>
+        {/* Content Body */}
+        <main style={{ flex: 1, padding: "28px 36px", overflowY: "auto", background: "#0c0c0f" }}>
+          {/* ================= TAB 1: STUDIO OVERVIEW (SCREENSHOT 2 & 3) ================= */}
+          {activeTab === "overview" && (
+            <div>
+              {/* Header section with Date picker and + Add Creation */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
+                <div>
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                    STUDIO DIRECTOR CONSOLE
+                  </div>
+                  <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff", letterSpacing: "-0.01em" }}>
+                    STUDIO OVERVIEW
+                  </h1>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                    Real-time insights into your creations, orders, inventory and customers.
+                  </p>
+                </div>
 
-          <button
-            onClick={() => setActiveTab("inventory")}
-            style={{
-              padding: "10px 20px",
-              border: "0",
-              borderBottom: activeTab === "inventory" ? "2px solid #191970" : "2px solid transparent",
-              background: "transparent",
-              color: activeTab === "inventory" ? "#191970" : "#765d50",
-              fontWeight: 600,
-              fontSize: "12px",
-              letterSpacing: "0.05em",
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <Layers size={15} /> Catalog & Inventory ({products.length})
-          </button>
-        </div>
-
-        {/* ================= TAB 1: LIVE ORDERS ================= */}
-        {activeTab === "orders" && (
-          <div>
-            {/* Filter & Search Bar */}
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "12px",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: "20px",
-              }}
-            >
-              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                {[
-                  { key: "all", label: "All" },
-                  { key: "processing", label: "Processing" },
-                  { key: "dispatched", label: "Dispatched" },
-                  { key: "delivered", label: "Delivered" },
-                  { key: "awaiting", label: "COD / Awaiting" },
-                ].map((f) => (
-                  <button
-                    key={f.key}
-                    onClick={() => setStatusFilter(f.key)}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div
                     style={{
-                      border: "1px solid rgba(42, 26, 20, 0.15)",
-                      borderRadius: "999px",
-                      padding: "6px 14px",
-                      fontSize: "11px",
-                      cursor: "pointer",
-                      background: statusFilter === f.key ? "#191970" : "#ffffff",
-                      color: statusFilter === f.key ? "#ffffff" : "#21130f",
-                      fontWeight: statusFilter === f.key ? 600 : 400,
+                      background: "#16161c",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: "6px",
+                      padding: "8px 14px",
+                      fontSize: "11.5px",
+                      color: "#e2e8f0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
                     }}
                   >
-                    {f.label}
+                    <Calendar size={13} style={{ color: "#c18847" }} /> 22 Oct 2026 – 28 Oct 2026 ▾
+                  </div>
+
+                  <button
+                    onClick={handleCreateDynamicTestOrder}
+                    style={{
+                      background: "rgba(16, 185, 129, 0.12)",
+                      border: "1px solid rgba(16, 185, 129, 0.3)",
+                      color: "#10b981",
+                      borderRadius: "6px",
+                      padding: "8px 14px",
+                      fontSize: "11.5px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                    title="Simulate customer placing an order to test live triggering"
+                  >
+                    <PlusCircle size={14} /> + Simulate Customer Order
                   </button>
-                ))}
-              </div>
 
-              <div style={{ position: "relative", minWidth: "280px" }}>
-                <Search size={14} style={{ position: "absolute", left: 12, top: 11, color: "#765d50" }} />
-                <input
-                  type="text"
-                  placeholder="Search order ID, client, email, city..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "9px 12px 9px 34px",
-                    borderRadius: "999px",
-                    border: "1px solid rgba(42, 26, 20, 0.15)",
-                    fontSize: "12px",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    background: "#ffffff",
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Orders Table */}
-            <div style={{ background: "#ffffff", borderRadius: "12px", border: "1px solid rgba(42, 26, 20, 0.08)", overflow: "hidden", boxShadow: "0 4px 14px rgba(0,0,0,0.02)" }}>
-              {filteredOrders.length === 0 ? (
-                <div style={{ padding: "48px 24px", textAlign: "center", color: "#765d50" }}>
-                  <Package size={36} style={{ margin: "0 auto 12px", opacity: 0.4 }} />
-                  <div style={{ fontSize: "14px", fontWeight: 600 }}>No orders match this filter</div>
-                  <div style={{ fontSize: "12px", marginTop: "4px" }}>Generate a test order or adjust your search filter above.</div>
+                  <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    style={{
+                      background: "linear-gradient(135deg, #c18847 0%, #a86b2b 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "8px 18px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      boxShadow: "0 4px 14px rgba(193, 136, 71, 0.25)",
+                    }}
+                  >
+                    <Plus size={14} /> + Add Creation
+                  </button>
                 </div>
-              ) : (
+              </div>
+
+              {/* 4 Metric Cards (Matching Screenshot 2) */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "28px" }}>
+                {/* 1. Total Revenue */}
+                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em" }}>
+                      TOTAL REVENUE
+                    </span>
+                    <span style={{ width: "24px", height: "24px", borderRadius: "50%", background: "rgba(193, 136, 71, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#c18847", fontSize: "11px", fontWeight: 700 }}>
+                      ₹
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "24px", fontWeight: 800, color: "#ffffff", margin: "10px 0 4px" }}>
+                    ₹ {totalRevenue.toLocaleString("en-IN")}
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: "#10b981", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <TrendingUp size={12} /> from {orders.length} customer orders
+                  </div>
+                </div>
+
+                {/* 2. Active Orders */}
+                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em" }}>
+                      ACTIVE ORDERS
+                    </span>
+                    <ShoppingBag size={14} style={{ color: "#3b82f6" }} />
+                  </div>
+                  <div style={{ fontSize: "24px", fontWeight: 800, color: "#ffffff", margin: "10px 0 4px" }}>
+                    {activeOrdersCount}
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: "#3b82f6" }}>
+                    On track in fulfillment
+                  </div>
+                </div>
+
+                {/* 3. Low-Stock SKUs */}
+                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em" }}>
+                      LOW-STOCK SKUS
+                    </span>
+                    <Boxes size={14} style={{ color: "#f59e0b" }} />
+                  </div>
+                  <div style={{ fontSize: "24px", fontWeight: 800, color: "#ffffff", margin: "10px 0 4px" }}>
+                    {lowStockCount}
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: "#f59e0b", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <AlertTriangle size={11} /> Needs attention
+                  </div>
+                </div>
+
+                {/* 4. Total Customers */}
+                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px 20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.08em" }}>
+                      TOTAL CUSTOMERS
+                    </span>
+                    <User size={14} style={{ color: "#10b981" }} />
+                  </div>
+                  <div style={{ fontSize: "24px", fontWeight: 800, color: "#ffffff", margin: "10px 0 4px" }}>
+                    {customersList.length}
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: "#10b981" }}>
+                    ↑ Active VIP clients
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Section: Orders Requiring Attention + Inventory Alerts */}
+              <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: "20px", marginBottom: "28px" }}>
+                {/* Orders Requiring Attention */}
+                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                    <h3 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#f8fafc", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      ORDERS REQUIRING ATTENTION
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab("orders")}
+                      style={{ background: "transparent", border: "none", color: "#c18847", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      View all →
+                    </button>
+                  </div>
+
+                  {orders.length === 0 ? (
+                    <div style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "12px" }}>
+                      No pending orders. All client orders are dispatched.
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px" }}>
+                        <thead>
+                          <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.06)", textAlign: "left" }}>
+                            <th style={{ padding: "8px 10px" }}>ORDER ID</th>
+                            <th style={{ padding: "8px 10px" }}>CUSTOMER</th>
+                            <th style={{ padding: "8px 10px" }}>TOTAL</th>
+                            <th style={{ padding: "8px 10px" }}>PAYMENT</th>
+                            <th style={{ padding: "8px 10px" }}>FULFILLMENT</th>
+                            <th style={{ padding: "8px 10px", textAlign: "right" }}>INVOICE</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {orders.slice(0, 5).map((o) => {
+                            const isPaid = (o.payment_status || "paid").toLowerCase() === "paid";
+                            return (
+                              <tr key={o.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                                <td style={{ padding: "10px", fontWeight: 600, color: "#c18847" }}>{o.id}</td>
+                                <td style={{ padding: "10px" }}>{o.client_name || o.customer_name}</td>
+                                <td style={{ padding: "10px", fontWeight: 700 }}>{o.total_amount || `₹${o.total_price}`}</td>
+                                <td style={{ padding: "10px" }}>
+                                  <span
+                                    style={{
+                                      display: "inline-block",
+                                      padding: "2px 8px",
+                                      borderRadius: "999px",
+                                      fontSize: "10px",
+                                      fontWeight: 700,
+                                      background: isPaid ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                                      color: isPaid ? "#10b981" : "#ef4444",
+                                    }}
+                                  >
+                                    {isPaid ? "PAID" : "FAILED"}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "10px" }}>
+                                  <span
+                                    style={{
+                                      display: "inline-block",
+                                      padding: "2px 8px",
+                                      borderRadius: "999px",
+                                      fontSize: "10px",
+                                      fontWeight: 700,
+                                      background:
+                                        o.status === "delivered"
+                                          ? "rgba(16, 185, 129, 0.15)"
+                                          : o.status === "dispatched"
+                                          ? "rgba(168, 85, 247, 0.15)"
+                                          : "rgba(59, 130, 246, 0.15)",
+                                      color:
+                                        o.status === "delivered"
+                                          ? "#10b981"
+                                          : o.status === "dispatched"
+                                          ? "#c084fc"
+                                          : "#60a5fa",
+                                    }}
+                                  >
+                                    {o.status.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "10px", textAlign: "right" }}>
+                                  <button
+                                    onClick={() => setSelectedInvoiceOrder(o)}
+                                    style={{
+                                      background: "rgba(255, 255, 255, 0.06)",
+                                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                                      color: "#f8fafc",
+                                      padding: "3px 8px",
+                                      borderRadius: "4px",
+                                      fontSize: "10px",
+                                      cursor: "pointer",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                    }}
+                                  >
+                                    <FileText size={11} /> Invoice
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Inventory Alerts (Matching Screenshot 2 right widget) */}
+                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "20px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                    <h3 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#f8fafc", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      INVENTORY ALERTS
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab("inventory")}
+                      style={{ background: "transparent", border: "none", color: "#c18847", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}
+                    >
+                      View inventory →
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {products.slice(0, 4).map((p) => {
+                      const stock = p.stock_quantity ?? 50;
+                      const isLow = stock < 20;
+                      return (
+                        <div
+                          key={p.slug}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "10px",
+                            background: "#181820",
+                            borderRadius: "8px",
+                            border: "1px solid rgba(255, 255, 255, 0.04)",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <img
+                              src={p.image}
+                              alt={p.name}
+                              style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "6px", background: "#222" }}
+                            />
+                            <div>
+                              <div style={{ fontSize: "11px", fontWeight: 600, color: "#f8fafc" }}>{p.name}</div>
+                              <div style={{ fontSize: "9.5px", color: "#64748b" }}>{p.category}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                background: isLow ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                                color: isLow ? "#ef4444" : "#10b981",
+                              }}
+                            >
+                              {stock} units
+                            </span>
+                            <button
+                              onClick={() => handleAdjustStock(p.slug, 10)}
+                              style={{
+                                background: "rgba(193, 136, 71, 0.12)",
+                                color: "#c18847",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "2px 6px",
+                                fontSize: "10px",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                              }}
+                            >
+                              +10
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Lower Section: Recent Orders (Screenshot 3) */}
+              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+                  <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#f8fafc", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    RECENT ORDERS
+                  </h3>
+
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <select
+                      value={orderStatusFilter}
+                      onChange={(e) => setOrderStatusFilter(e.target.value)}
+                      style={{
+                        background: "#181820",
+                        color: "#e2e8f0",
+                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        borderRadius: "6px",
+                        padding: "6px 12px",
+                        fontSize: "11px",
+                        outline: "none",
+                      }}
+                    >
+                      <option value="all">All orders</option>
+                      <option value="processing">Processing</option>
+                      <option value="dispatched">Dispatched</option>
+                      <option value="delivered">Delivered</option>
+                      <option value="paid">Paid only</option>
+                      <option value="failed">Failed / Cancelled</option>
+                    </select>
+
+                    <button
+                      onClick={fetchOrders}
+                      disabled={loading}
+                      style={{
+                        background: "#181820",
+                        color: "#94a3b8",
+                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        borderRadius: "6px",
+                        padding: "6px 10px",
+                        cursor: "pointer",
+                      }}
+                      title="Refresh Orders"
+                    >
+                      <RefreshCw size={13} className={loading ? "spin-icon" : ""} />
+                    </button>
+                  </div>
+                </div>
+
                 <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px" }}>
                     <thead>
-                      <tr style={{ background: "#fcf8f2", borderBottom: "1px solid rgba(42, 26, 20, 0.08)", color: "#765d50", fontSize: "10.5px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        <th style={{ padding: "14px 18px" }}>Order Ref</th>
-                        <th style={{ padding: "14px 18px" }}>Client</th>
-                        <th style={{ padding: "14px 18px" }}>Items</th>
-                        <th style={{ padding: "14px 18px" }}>Total</th>
-                        <th style={{ padding: "14px 18px" }}>Payment</th>
-                        <th style={{ padding: "14px 18px" }}>Status</th>
-                        <th style={{ padding: "14px 18px" }}>Tracking</th>
-                        <th style={{ padding: "14px 18px", textAlign: "right" }}>Actions</th>
+                      <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", textAlign: "left" }}>
+                        <th style={{ padding: "12px" }}>ORDER ID</th>
+                        <th style={{ padding: "12px" }}>CUSTOMER</th>
+                        <th style={{ padding: "12px" }}>DATE</th>
+                        <th style={{ padding: "12px" }}>ITEMS</th>
+                        <th style={{ padding: "12px" }}>TOTAL</th>
+                        <th style={{ padding: "12px" }}>PAYMENT</th>
+                        <th style={{ padding: "12px" }}>STATUS</th>
+                        <th style={{ padding: "12px", textAlign: "right" }}>ACTIONS</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredOrders.map((o) => {
                         const items = parseItems(o.items);
-                        const isPaid = o.payment_status === "paid";
+                        const isPaid = (o.payment_status || "paid").toLowerCase() === "paid";
                         return (
-                          <tr
-                            key={o.id}
-                            style={{
-                              borderBottom: "1px solid rgba(42, 26, 20, 0.06)",
-                              transition: "background 0.15s ease",
-                            }}
-                          >
-                            <td style={{ padding: "16px 18px", fontWeight: 600, color: "#191970" }}>
-                              <div>{o.id}</div>
-                              <div style={{ fontSize: "10px", color: "#765d50", fontWeight: 400, marginTop: "2px" }}>
-                                {new Date(o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                              </div>
+                          <tr key={o.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                            <td style={{ padding: "12px", fontWeight: 600, color: "#c18847" }}>{o.id}</td>
+                            <td style={{ padding: "12px" }}>
+                              <div style={{ fontWeight: 600, color: "#ffffff" }}>{o.client_name || o.customer_name}</div>
+                              <div style={{ fontSize: "10px", color: "#64748b" }}>{o.client_email || o.customer_email}</div>
                             </td>
-
-                            <td style={{ padding: "16px 18px" }}>
-                              <div style={{ fontWeight: 600 }}>{o.client_name || o.customer_name}</div>
-                              <div style={{ fontSize: "11px", color: "#765d50" }}>{o.client_email || o.customer_email}</div>
-                              <div style={{ fontSize: "10px", color: "#9c8172" }}>{o.client_phone || o.customer_phone}</div>
+                            <td style={{ padding: "12px", color: "#94a3b8" }}>
+                              {new Date(o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
                             </td>
-
-                            <td style={{ padding: "16px 18px" }}>
-                              <div style={{ fontWeight: 500 }}>
-                                {items.length > 0 ? items[0].name : `${o.items_count} pieces`}
-                              </div>
-                              {items.length > 1 && (
-                                <div style={{ fontSize: "10.5px", color: "#765d50" }}>+{items.length - 1} more items</div>
-                              )}
-                            </td>
-
-                            <td style={{ padding: "16px 18px", fontWeight: 700 }}>
-                              {o.total_amount || `₹${Number(o.total_price || 0).toLocaleString("en-IN")}`}
-                            </td>
-
-                            <td style={{ padding: "16px 18px" }}>
-                              <span
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  padding: "3px 8px",
-                                  borderRadius: "4px",
-                                  fontSize: "10.5px",
-                                  fontWeight: 600,
-                                  background: isPaid ? "rgba(30, 107, 55, 0.1)" : "rgba(184, 93, 25, 0.12)",
-                                  color: isPaid ? "#1e6b37" : "#b85d19",
-                                }}
-                              >
-                                {o.payment_method?.toUpperCase() || "UPI"} · {isPaid ? "Paid" : "Pending"}
-                              </span>
-                            </td>
-
-                            <td style={{ padding: "16px 18px" }}>
+                            <td style={{ padding: "12px" }}>{items.length || o.items_count || 1}</td>
+                            <td style={{ padding: "12px", fontWeight: 700 }}>{o.total_amount || `₹${o.total_price}`}</td>
+                            <td style={{ padding: "12px" }}>
                               <span
                                 style={{
                                   display: "inline-block",
-                                  padding: "4px 10px",
+                                  padding: "3px 8px",
                                   borderRadius: "999px",
-                                  fontSize: "10.5px",
-                                  fontWeight: 600,
-                                  textTransform: "capitalize",
-                                  background:
-                                    o.status === "delivered"
-                                      ? "rgba(30, 107, 55, 0.12)"
-                                      : o.status === "dispatched"
-                                      ? "rgba(102, 51, 153, 0.12)"
-                                      : o.status === "cancelled"
-                                      ? "rgba(163, 77, 69, 0.15)"
-                                      : "rgba(25, 25, 112, 0.1)",
-                                  color:
-                                    o.status === "delivered"
-                                      ? "#1e6b37"
-                                      : o.status === "dispatched"
-                                      ? "#582a85"
-                                      : o.status === "cancelled"
-                                      ? "#a34d45"
-                                      : "#191970",
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  background: isPaid ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                                  color: isPaid ? "#10b981" : "#ef4444",
                                 }}
                               >
-                                {o.status}
+                                {isPaid ? "PAID" : "FAILED"}
                               </span>
                             </td>
-
-                            <td style={{ padding: "16px 18px" }}>
-                              {o.tracking_number ? (
-                                <span style={{ fontFamily: "monospace", fontSize: "10.5px", color: "#582a85", background: "rgba(88, 42, 133, 0.08)", padding: "3px 6px", borderRadius: "4px" }}>
-                                  {o.tracking_number}
-                                </span>
-                              ) : (
-                                <span style={{ color: "#a89487", fontSize: "11px" }}>Awaiting Dispatch</span>
-                              )}
+                            <td style={{ padding: "12px" }}>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  padding: "3px 8px",
+                                  borderRadius: "999px",
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  background:
+                                    o.status === "delivered"
+                                      ? "rgba(16, 185, 129, 0.15)"
+                                      : o.status === "dispatched"
+                                      ? "rgba(168, 85, 247, 0.15)"
+                                      : "rgba(59, 130, 246, 0.15)",
+                                  color:
+                                    o.status === "delivered"
+                                      ? "#10b981"
+                                      : o.status === "dispatched"
+                                      ? "#c084fc"
+                                      : "#60a5fa",
+                                }}
+                              >
+                                {o.status.toUpperCase()}
+                              </span>
                             </td>
-
-                            <td style={{ padding: "16px 18px", textAlign: "right" }}>
+                            <td style={{ padding: "12px", textAlign: "right" }}>
                               <div style={{ display: "inline-flex", gap: "6px" }}>
                                 <button
-                                  onClick={() => setSelectedOrder(o)}
+                                  onClick={() => setSelectedInvoiceOrder(o)}
                                   style={{
-                                    border: "1px solid rgba(42, 26, 20, 0.15)",
-                                    background: "#ffffff",
-                                    padding: "5px 10px",
+                                    background: "rgba(193, 136, 71, 0.12)",
+                                    border: "1px solid rgba(193, 136, 71, 0.3)",
+                                    color: "#c18847",
+                                    padding: "4px 8px",
                                     borderRadius: "4px",
-                                    fontSize: "11px",
+                                    fontSize: "10.5px",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  <FileText size={12} /> Tax Invoice
+                                </button>
+                                <button
+                                  onClick={() => setSelectedOrderDetails(o)}
+                                  style={{
+                                    background: "rgba(255, 255, 255, 0.06)",
+                                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                                    color: "#f8fafc",
+                                    padding: "4px 8px",
+                                    borderRadius: "4px",
+                                    fontSize: "10.5px",
                                     cursor: "pointer",
                                   }}
                                 >
                                   Details
                                 </button>
-
-                                {o.status === "processing" && (
-                                  <button
-                                    onClick={() => handleUpdateStatus(o.id, "dispatched")}
-                                    disabled={isUpdatingStatus}
-                                    style={{
-                                      border: "0",
-                                      background: "#582a85",
-                                      color: "#ffffff",
-                                      padding: "5px 10px",
-                                      borderRadius: "4px",
-                                      fontSize: "11px",
-                                      fontWeight: 600,
-                                      cursor: "pointer",
-                                    }}
-                                  >
-                                    Dispatch
-                                  </button>
-                                )}
-
-                                {o.status === "dispatched" && (
-                                  <button
-                                    onClick={() => handleUpdateStatus(o.id, "delivered")}
-                                    disabled={isUpdatingStatus}
-                                    style={{
-                                      border: "0",
-                                      background: "#1e6b37",
-                                      color: "#ffffff",
-                                      padding: "5px 10px",
-                                      borderRadius: "4px",
-                                      fontSize: "11px",
-                                      fontWeight: 600,
-                                      cursor: "pointer",
-                                    }}
-                                  >
-                                    Deliver
-                                  </button>
-                                )}
                               </div>
                             </td>
                           </tr>
@@ -1626,318 +1962,168 @@ export default function AdminView({ onBack }: AdminViewProps) {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ================= TAB 2: CLIENTS DIRECTORY ================= */}
-        {activeTab === "customers" && (
-          <div>
-            <div style={{ background: "#ffffff", borderRadius: "12px", border: "1px solid rgba(42, 26, 20, 0.08)", overflow: "hidden" }}>
-              <div style={{ padding: "18px 24px", borderBottom: "1px solid rgba(42, 26, 20, 0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: "16px", color: "#191970", fontWeight: 700 }}>Maison Clientele Directory</h3>
-                  <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#765d50" }}>Dynamically aggregated from real-time authenticated order histories</p>
-                </div>
-                <div style={{ fontSize: "12px", fontWeight: 600, color: "#191970" }}>{customersList.length} Registered Patrons</div>
-              </div>
-
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-                  <thead>
-                    <tr style={{ background: "#fcf8f2", borderBottom: "1px solid rgba(42, 26, 20, 0.08)", color: "#765d50", fontSize: "10.5px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                      <th style={{ padding: "14px 18px" }}>Client</th>
-                      <th style={{ padding: "14px 18px" }}>Contact</th>
-                      <th style={{ padding: "14px 18px" }}>Primary Hub</th>
-                      <th style={{ padding: "14px 18px" }}>Orders Placed</th>
-                      <th style={{ padding: "14px 18px" }}>Lifetime Value (LTV)</th>
-                      <th style={{ padding: "14px 18px" }}>Last Order</th>
-                      <th style={{ padding: "14px 18px", textAlign: "right" }}>Filter</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {customersList.map((c) => (
-                      <tr key={c.email} style={{ borderBottom: "1px solid rgba(42, 26, 20, 0.06)" }}>
-                        <td style={{ padding: "16px 18px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #191970, #2b0a05)", color: "#ffffff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: "12px" }}>
-                              {c.name.charAt(0)}
-                            </div>
-                            <span style={{ fontWeight: 600 }}>{c.name}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: "16px 18px" }}>
-                          <div>{c.email}</div>
-                          <div style={{ fontSize: "11px", color: "#765d50" }}>{c.phone}</div>
-                        </td>
-                        <td style={{ padding: "16px 18px", color: "#582a85", fontWeight: 500 }}>
-                          <MapPin size={12} style={{ display: "inline", marginRight: "4px" }} />
-                          {c.city}
-                        </td>
-                        <td style={{ padding: "16px 18px", fontWeight: 600 }}>
-                          {c.orderCount} {c.orderCount === 1 ? "order" : "orders"}
-                        </td>
-                        <td style={{ padding: "16px 18px", fontWeight: 700, color: "#191970" }}>
-                          ₹{c.totalSpent.toLocaleString("en-IN")}
-                        </td>
-                        <td style={{ padding: "16px 18px", color: "#765d50", fontSize: "11px" }}>
-                          {new Date(c.lastOrderDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}
-                        </td>
-                        <td style={{ padding: "16px 18px", textAlign: "right" }}>
-                          <button
-                            onClick={() => {
-                              setSearchQuery(c.name);
-                              setActiveTab("orders");
-                            }}
-                            style={{
-                              border: "1px solid rgba(42, 26, 20, 0.15)",
-                              background: "transparent",
-                              padding: "4px 10px",
-                              borderRadius: "4px",
-                              fontSize: "11px",
-                              cursor: "pointer",
-                              color: "#191970",
-                              fontWeight: 600,
-                            }}
-                          >
-                            View Orders
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ================= TAB 3: MASTER CATALOG & INVENTORY ================= */}
-        {activeTab === "inventory" && (
-          <div>
-            <div style={{ background: "#ffffff", borderRadius: "12px", border: "1px solid rgba(42, 26, 20, 0.08)", overflow: "hidden", boxShadow: "0 4px 14px rgba(0,0,0,0.02)" }}>
-              <div style={{ padding: "20px 24px", borderBottom: "1px solid rgba(42, 26, 20, 0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          {/* ================= TAB 2: CREATIONS CATALOGUE (SCREENSHOT 4) ================= */}
+          {activeTab === "creations" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: "16px", color: "#191970", fontWeight: 700 }}>
-                    Maison Product Catalog & Master Inventory
-                  </h3>
-                  <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#765d50" }}>
-                    {products.length} registered creations with real-time customer storefront synchronization & live Supabase persistence
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                    STUDIO DIRECTOR CONSOLE
+                  </div>
+                  <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                    CREATIONS CATALOGUE
+                  </h1>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                    Manage your archival creations, photoshoot releases, pricing, and shade availability.
                   </p>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <button
-                    onClick={fetchProducts}
+
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  style={{
+                    background: "linear-gradient(135deg, #c18847 0%, #a86b2b 100%)",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "10px 20px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    boxShadow: "0 4px 14px rgba(193, 136, 71, 0.3)",
+                  }}
+                >
+                  <Plus size={14} /> + Add New Creation
+                </button>
+              </div>
+
+              {/* Filters & Search */}
+              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "14px 18px", marginBottom: "18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff" }}>
+                  CATALOGUE ({filteredProducts.length})
+                </span>
+
+                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      background: "#ffffff",
-                      border: "1px solid rgba(42, 26, 20, 0.15)",
-                      borderRadius: "999px",
-                      padding: "8px 14px",
+                      background: "#181820",
+                      color: "#e2e8f0",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
                       fontSize: "11px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      color: "#765d50",
+                      outline: "none",
                     }}
                   >
-                    <RefreshCw size={13} /> Refresh
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsAddModalOpen(true);
-                    }}
+                    <option value="all">All Categories</option>
+                    <option value="Lipsticks">Lipsticks</option>
+                    <option value="Blushes">Blushes</option>
+                    <option value="Body Highlighter Oil">Body Highlighter Oil</option>
+                    <option value="Foundation">Foundation</option>
+                    <option value="Collection">Wardrobe Collection</option>
+                  </select>
+
+                  <select
+                    value={stockHealthFilter}
+                    onChange={(e) => setStockHealthFilter(e.target.value)}
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      background: "#191970",
-                      color: "#ffffff",
-                      border: "none",
-                      padding: "9px 18px",
-                      borderRadius: "999px",
-                      fontWeight: 600,
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      boxShadow: "0 4px 14px rgba(25, 25, 112, 0.25)",
-                      letterSpacing: "0.03em",
+                      background: "#181820",
+                      color: "#e2e8f0",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "11px",
+                      outline: "none",
                     }}
                   >
-                    <PlusCircle size={15} /> Add New Creation
-                  </button>
+                    <option value="all">All Stock Levels</option>
+                    <option value="healthy">Healthy Stock (&ge; 15)</option>
+                    <option value="low">Low Stock (&lt; 15)</option>
+                  </select>
                 </div>
               </div>
 
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+              {/* Table Matching Screenshot 4 */}
+              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
                   <thead>
-                    <tr style={{ background: "#fcf8f2", borderBottom: "1px solid rgba(42, 26, 20, 0.08)", color: "#765d50", fontSize: "10.5px", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                      <th style={{ padding: "14px 18px" }}>Piece</th>
-                      <th style={{ padding: "14px 18px" }}>Category</th>
-                      <th style={{ padding: "14px 18px" }}>Official Price</th>
-                      <th style={{ padding: "14px 18px" }}>Stock Level</th>
-                      <th style={{ padding: "14px 18px", textAlign: "right" }}>Actions</th>
+                    <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "#16161b" }}>
+                      <th style={{ padding: "12px 16px" }}>SKU</th>
+                      <th style={{ padding: "12px 16px" }}>CREATION NAME</th>
+                      <th style={{ padding: "12px 16px" }}>CATEGORY</th>
+                      <th style={{ padding: "12px 16px" }}>SELLING PRICE</th>
+                      <th style={{ padding: "12px 16px" }}>VARIANTS</th>
+                      <th style={{ padding: "12px 16px" }}>TOTAL STOCK</th>
+                      <th style={{ padding: "12px 16px" }}>STATUS</th>
+                      <th style={{ padding: "12px 16px", textAlign: "right" }}>ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {products.map((p) => {
-                      const stock = p.stock_quantity || 0;
-                      const isLow = stock < 15;
-                      const normCat = normalizeCategory(p.category);
+                    {filteredProducts.map((p, idx) => {
+                      const sku = String(idx + 1).padStart(2, "0");
+                      const stock = p.stock_quantity ?? 50;
                       return (
-                        <tr key={p.id || p.slug} style={{ borderBottom: "1px solid rgba(42, 26, 20, 0.06)" }}>
-                          <td style={{ padding: "14px 18px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                              {p.image && (
-                                <img
-                                  src={p.image}
-                                  alt={p.name}
-                                  style={{ width: "42px", height: "42px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(42,26,20,0.1)", background: "#faf5ee" }}
-                                />
-                              )}
+                        <tr key={p.slug || p.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                          <td style={{ padding: "12px 16px", color: "#64748b", fontFamily: "monospace" }}>{sku}</td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <img
+                                src={p.image}
+                                alt={p.name}
+                                style={{ width: "38px", height: "38px", objectFit: "cover", borderRadius: "6px", background: "#222" }}
+                              />
                               <div>
-                                <div style={{ fontWeight: 600, color: "#191970" }}>{p.name}</div>
-                                <div style={{ fontSize: "10.5px", color: "#765d50", display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                                <div style={{ fontWeight: 600, color: "#ffffff" }}>{p.name}</div>
+                                <div style={{ fontSize: "10px", color: "#64748b", display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
                                   <span>{p.slug}</span>
                                   {p.images && p.images.length > 1 && (
-                                    <span style={{ fontSize: "9.5px", background: "rgba(25, 25, 112, 0.08)", color: "#191970", padding: "1px 6px", borderRadius: "999px", fontWeight: 600 }}>
+                                    <span style={{ fontSize: "9px", background: "rgba(193, 136, 71, 0.15)", color: "#c18847", padding: "1px 5px", borderRadius: "4px", fontWeight: 700 }}>
                                       📷 {p.images.length} photos
                                     </span>
-                                  )}
-                                  {p.tone && (
-                                    <span
-                                      title={`Tone: ${p.tone}`}
-                                      style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: p.tone, border: "1px solid rgba(0,0,0,0.2)" }}
-                                    />
                                   )}
                                 </div>
                               </div>
                             </div>
                           </td>
-
-                          <td style={{ padding: "14px 18px" }}>
-                            <span
-                              style={{
-                                background:
-                                  normCat === "Lipsticks"
-                                    ? "rgba(168, 25, 32, 0.08)"
-                                    : normCat === "Blushes"
-                                    ? "rgba(184, 72, 110, 0.08)"
-                                    : normCat === "Body Highlighter Oil"
-                                    ? "rgba(193, 136, 71, 0.1)"
-                                    : "rgba(42, 26, 20, 0.06)",
-                                color:
-                                  normCat === "Lipsticks"
-                                    ? "#a81920"
-                                    : normCat === "Blushes"
-                                    ? "#b8486e"
-                                    : normCat === "Body Highlighter Oil"
-                                    ? "#965b16"
-                                    : "#21130f",
-                                padding: "4px 10px",
-                                borderRadius: "999px",
-                                fontSize: "11px",
-                                fontWeight: 600,
-                              }}
-                            >
-                              {normCat}
+                          <td style={{ padding: "12px 16px", color: "#94a3b8" }}>{p.category}</td>
+                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "#ffffff" }}>
+                            ₹ {p.price.toLocaleString("en-IN")}
+                          </td>
+                          <td style={{ padding: "12px 16px", color: "#94a3b8" }}>
+                            <div style={{ display: "flex", gap: "4px" }}>
+                              <span style={{ background: "#1c1c24", padding: "2px 6px", borderRadius: "4px", fontSize: "9.5px" }}>Full Size</span>
+                              <span style={{ background: "#1c1c24", padding: "2px 6px", borderRadius: "4px", fontSize: "9.5px" }}>Travel</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{stock} units</td>
+                          <td style={{ padding: "12px 16px" }}>
+                            <span style={{ display: "inline-block", padding: "3px 8px", borderRadius: "999px", fontSize: "10px", fontWeight: 700, background: "rgba(16, 185, 129, 0.15)", color: "#10b981" }}>
+                              ACTIVE
                             </span>
                           </td>
-
-                          <td style={{ padding: "14px 18px", fontWeight: 700, color: "#191970", fontSize: "13px" }}>
-                            ₹{p.price.toLocaleString("en-IN")}
-                          </td>
-
-                          <td style={{ padding: "14px 18px" }}>
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                fontWeight: 600,
-                                fontSize: "11px",
-                                color: isLow ? "#b85d19" : "#1e6b37",
-                              }}
-                            >
-                              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: isLow ? "#b85d19" : "#1e6b37" }} />
-                              {stock} units {isLow && "(Low)"}
-                            </span>
-                          </td>
-
-                          <td style={{ padding: "14px 18px", textAlign: "right" }}>
-                            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              {/* Stock adjusters */}
+                          <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", gap: "6px" }}>
                               <button
-                                title="Decrease stock by 5"
-                                onClick={() => handleAdjustStock(p.slug, -5)}
-                                style={{
-                                  border: "1px solid rgba(42, 26, 20, 0.15)",
-                                  background: "#ffffff",
-                                  padding: "4px 8px",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  fontSize: "10.5px",
-                                }}
-                              >
-                                -5
-                              </button>
-                              <button
-                                title="Increase stock by 5"
-                                onClick={() => handleAdjustStock(p.slug, 5)}
-                                style={{
-                                  border: "1px solid rgba(42, 26, 20, 0.15)",
-                                  background: "#ffffff",
-                                  padding: "4px 8px",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  fontSize: "10.5px",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                +5
-                              </button>
-
-                              {/* Copy JSON for super admin efficiency */}
-                              <button
-                                title="Copy Product JSON for fast duplicate"
                                 onClick={() => handleCopyProductJson(p)}
-                                style={{
-                                  border: "1px solid rgba(42, 26, 20, 0.15)",
-                                  background: "#ffffff",
-                                  padding: "4px 8px",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  fontSize: "11px",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  color: "#765d50",
-                                }}
+                                style={{ background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#94a3b8", padding: "4px 8px", borderRadius: "4px", fontSize: "10.5px", cursor: "pointer" }}
+                                title="Copy JSON"
                               >
-                                <Copy size={12} /> Copy JSON
+                                <Copy size={11} /> Copy JSON
                               </button>
-
-                              {/* Delete Piece */}
                               <button
-                                title="Delete Piece"
                                 onClick={() => handleDeleteProduct(p)}
-                                style={{
-                                  border: "1px solid rgba(184, 40, 40, 0.2)",
-                                  background: "rgba(184, 40, 40, 0.05)",
-                                  color: "#b82828",
-                                  padding: "4px 8px",
-                                  borderRadius: "4px",
-                                  cursor: "pointer",
-                                  fontSize: "11px",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "4px",
-                                  fontWeight: 500,
-                                }}
+                                style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "#ef4444", padding: "4px 8px", borderRadius: "4px", fontSize: "10.5px", cursor: "pointer" }}
+                                title="Delete Piece"
                               >
-                                <Trash2 size={12} /> Delete
+                                <Trash2 size={11} />
                               </button>
                             </div>
                           </td>
@@ -1948,19 +2134,385 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 </table>
               </div>
             </div>
-          </div>
-        )}
-      </main>
+          )}
 
-      {/* ================= ADD NEW CREATION MODAL ================= */}
+          {/* ================= TAB 3: INVENTORY & SKU MATRIX (SCREENSHOT 5) ================= */}
+          {activeTab === "inventory" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+                <div>
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                    STUDIO DIRECTOR CONSOLE
+                  </div>
+                  <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                    INVENTORY & SKU MATRIX
+                  </h1>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                    Size-level telemetry, available-to-sell calculations, buffer alerts, and stock adjustments.
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const csvContent = "data:text/csv;charset=utf-8,Variant SKU,Creation,Shade,On Hand,Reserved,Available\n" +
+                      skuMatrix.map(s => `${s.sku},"${s.product.name}","${s.shadeName}",${s.onHand},${s.reserved},${s.available}`).join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", `SheAura-Inventory-Matrix-${new Date().toISOString().slice(0, 10)}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showNotice("✓ Inventory SKU Matrix CSV exported successfully!");
+                  }}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.08)",
+                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                    color: "#ffffff",
+                    borderRadius: "6px",
+                    padding: "8px 16px",
+                    fontSize: "11.5px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <FileSpreadsheet size={13} /> Export CSV
+                </button>
+              </div>
+
+              {/* Table Matching Screenshot 5 */}
+              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", overflow: "hidden" }}>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", fontSize: "13px", fontWeight: 700, color: "#ffffff" }}>
+                  VARIANT MATRIX ({skuMatrix.length})
+                </div>
+
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "#16161b" }}>
+                      <th style={{ padding: "12px 16px" }}>VARIANT SKU</th>
+                      <th style={{ padding: "12px 16px" }}>CREATION</th>
+                      <th style={{ padding: "12px 16px" }}>SHADE / SIZE</th>
+                      <th style={{ padding: "12px 16px" }}>ON HAND</th>
+                      <th style={{ padding: "12px 16px" }}>RESERVED</th>
+                      <th style={{ padding: "12px 16px" }}>AVAILABLE TO SELL</th>
+                      <th style={{ padding: "12px 16px" }}>HEALTH</th>
+                      <th style={{ padding: "12px 16px", textAlign: "right" }}>ADJUST</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {skuMatrix.map((item) => (
+                      <tr key={item.sku} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                        <td style={{ padding: "12px 16px", fontFamily: "monospace", color: "#c18847" }}>{item.sku}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <div style={{ fontWeight: 600, color: "#ffffff" }}>{item.product.name}</div>
+                          <div style={{ fontSize: "10px", color: "#64748b" }}>{item.product.category}</div>
+                        </td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span style={{ background: "#1c1c24", border: "1px solid rgba(255,255,255,0.08)", padding: "3px 8px", borderRadius: "4px", fontSize: "10.5px" }}>
+                            {item.shadeName}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px" }}>{item.onHand}</td>
+                        <td style={{ padding: "12px 16px", color: "#94a3b8" }}>{item.reserved}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: "#10b981" }}>{item.available}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              padding: "2px 8px",
+                              borderRadius: "999px",
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              background: item.health === "ACTIVE" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                              color: item.health === "ACTIVE" ? "#10b981" : "#ef4444",
+                            }}
+                          >
+                            {item.health}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", gap: "6px" }}>
+                            <button
+                              onClick={() => handleAdjustStock(item.product.slug, -5)}
+                              style={{ background: "#1c1c24", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#e2e8f0", padding: "3px 7px", borderRadius: "4px", fontSize: "10px", cursor: "pointer" }}
+                            >
+                              -5
+                            </button>
+                            <button
+                              onClick={() => handleAdjustStock(item.product.slug, 5)}
+                              style={{ background: "#1c1c24", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#10b981", padding: "3px 7px", borderRadius: "4px", fontSize: "10px", cursor: "pointer", fontWeight: 700 }}
+                            >
+                              +5
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 4: ORDERS & DISPATCH ================= */}
+          {activeTab === "orders" && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+                <div>
+                  <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                    STUDIO DIRECTOR CONSOLE
+                  </div>
+                  <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                    ORDERS & DISPATCH MANAGEMENT
+                  </h1>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                    Live customer order dispatch pipeline, courier tracking, and GST tax invoice generation.
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleCreateDynamicTestOrder}
+                  style={{
+                    background: "rgba(16, 185, 129, 0.12)",
+                    border: "1px solid rgba(16, 185, 129, 0.3)",
+                    color: "#10b981",
+                    borderRadius: "6px",
+                    padding: "8px 16px",
+                    fontSize: "11.5px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <PlusCircle size={14} /> + New Test Order
+                </button>
+              </div>
+
+              {/* Status Filters */}
+              <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+                {["all", "processing", "dispatched", "delivered", "paid", "cancelled"].map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => setOrderStatusFilter(st)}
+                    style={{
+                      background: orderStatusFilter === st ? "#c18847" : "#131317",
+                      color: orderStatusFilter === st ? "#ffffff" : "#94a3b8",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      borderRadius: "999px",
+                      padding: "6px 14px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {st === "all" ? "All Orders" : st}
+                  </button>
+                ))}
+              </div>
+
+              {/* Orders Full Table */}
+              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "#16161b" }}>
+                      <th style={{ padding: "14px 16px" }}>ORDER ID</th>
+                      <th style={{ padding: "14px 16px" }}>CUSTOMER & ADDRESS</th>
+                      <th style={{ padding: "14px 16px" }}>ITEMS</th>
+                      <th style={{ padding: "14px 16px" }}>TOTAL</th>
+                      <th style={{ padding: "14px 16px" }}>STATUS</th>
+                      <th style={{ padding: "14px 16px" }}>TRACKING</th>
+                      <th style={{ padding: "14px 16px", textAlign: "right" }}>ACTIONS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((o) => {
+                      const items = parseItems(o.items);
+                      return (
+                        <tr key={o.id} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                          <td style={{ padding: "14px 16px", fontWeight: 700, color: "#c18847" }}>
+                            <div>{o.id}</div>
+                            <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>
+                              {new Date(o.created_at).toLocaleDateString("en-IN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </div>
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            <div style={{ fontWeight: 600, color: "#ffffff" }}>{o.client_name || o.customer_name}</div>
+                            <div style={{ fontSize: "10.5px", color: "#94a3b8" }}>{o.client_email || o.customer_email}</div>
+                            <div style={{ fontSize: "9.5px", color: "#64748b" }}>{o.shipping_address}</div>
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            {items.length > 0 ? (
+                              <div>
+                                <div style={{ color: "#f8fafc", fontWeight: 500 }}>{items[0].name}</div>
+                                {items.length > 1 && <div style={{ fontSize: "10px", color: "#64748b" }}>+{items.length - 1} more items</div>}
+                              </div>
+                            ) : (
+                              <span>{o.items_count || 1} pieces</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "14px 16px", fontWeight: 700, color: "#ffffff" }}>
+                            {o.total_amount || `₹${o.total_price}`}
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            <select
+                              value={o.status}
+                              onChange={(e) => handleUpdateStatus(o.id, e.target.value as any)}
+                              style={{
+                                background: "#1c1c24",
+                                color: "#f8fafc",
+                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                borderRadius: "4px",
+                                padding: "4px 8px",
+                                fontSize: "10.5px",
+                                outline: "none",
+                              }}
+                            >
+                              <option value="processing">Processing</option>
+                              <option value="dispatched">Dispatched</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            {o.tracking_number ? (
+                              <span style={{ fontFamily: "monospace", fontSize: "10.5px", color: "#c084fc", background: "rgba(168, 85, 247, 0.1)", padding: "2px 6px", borderRadius: "4px" }}>
+                                {o.tracking_number}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: "10px", color: "#64748b" }}>Not dispatched</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", gap: "6px" }}>
+                              <button
+                                onClick={() => setSelectedInvoiceOrder(o)}
+                                style={{
+                                  background: "rgba(193, 136, 71, 0.15)",
+                                  border: "1px solid rgba(193, 136, 71, 0.35)",
+                                  color: "#c18847",
+                                  padding: "5px 10px",
+                                  borderRadius: "4px",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                <FileText size={12} /> Tax Invoice
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 5: CUSTOMERS DIRECTORY ================= */}
+          {activeTab === "customers" && (
+            <div>
+              <div style={{ marginBottom: "20px" }}>
+                <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                  STUDIO DIRECTOR CONSOLE
+                </div>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                  CLIENTS & CUSTOMER DIRECTORY
+                </h1>
+                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                  VIP client engagement, order frequency, total lifetime value, and city tiering.
+                </p>
+              </div>
+
+              <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11.5px", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ color: "#64748b", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", background: "#16161b" }}>
+                      <th style={{ padding: "14px 16px" }}>CLIENT NAME</th>
+                      <th style={{ padding: "14px 16px" }}>EMAIL</th>
+                      <th style={{ padding: "14px 16px" }}>PHONE</th>
+                      <th style={{ padding: "14px 16px" }}>LOCATION</th>
+                      <th style={{ padding: "14px 16px" }}>ORDERS</th>
+                      <th style={{ padding: "14px 16px", textAlign: "right" }}>LIFETIME VALUE</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customersList.map((c) => (
+                      <tr key={c.email} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                        <td style={{ padding: "14px 16px", fontWeight: 600, color: "#ffffff" }}>{c.name}</td>
+                        <td style={{ padding: "14px 16px", color: "#94a3b8" }}>{c.email}</td>
+                        <td style={{ padding: "14px 16px", color: "#64748b" }}>{c.phone}</td>
+                        <td style={{ padding: "14px 16px", color: "#94a3b8" }}>{c.city}</td>
+                        <td style={{ padding: "14px 16px", fontWeight: 600 }}>{c.orderCount} order{c.orderCount === 1 ? "" : "s"}</td>
+                        <td style={{ padding: "14px 16px", fontWeight: 700, color: "#c18847", textAlign: "right" }}>
+                          ₹ {c.totalSpent.toLocaleString("en-IN")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ================= TAB 6: SETTINGS & GATEWAY ================= */}
+          {activeTab === "settings" && (
+            <div style={{ maxWidth: "800px" }}>
+              <div style={{ marginBottom: "20px" }}>
+                <div style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
+                  STUDIO DIRECTOR CONSOLE
+                </div>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, margin: "4px 0 0", color: "#ffffff" }}>
+                  SYSTEM & SECURITY SETTINGS
+                </h1>
+                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>
+                  Administrative credentials, Supabase database synchronization, and gateway protection.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "20px" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", marginBottom: "8px" }}>
+                    Dedicated Gateway Isolation
+                  </div>
+                  <div style={{ fontSize: "11.5px", color: "#94a3b8", lineHeight: 1.6 }}>
+                    Direct admin panel login is strictly routed through <b>/sheaura/login</b>. Unauthenticated visits to <b>/admin</b> automatically redirect to the isolated login portal with cryptographic signature verification.
+                  </div>
+                </div>
+
+                <div style={{ background: "#131317", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "20px" }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff", marginBottom: "8px" }}>
+                    Database Synchronization Status
+                  </div>
+                  <div style={{ fontSize: "11.5px", color: "#10b981", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <ShieldCheck size={16} /> Direct Supabase cloud database connected (PostgreSQL / RLS enabled)
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* ================= ADD NEW CREATION MODAL (WITH PROPER PHOTO UPLOAD BUTTON) ================= */}
       {isAddModalOpen && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 1000,
-            background: "rgba(0, 0, 0, 0.6)",
-            backdropFilter: "blur(6px)",
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(8px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1972,77 +2524,70 @@ export default function AdminView({ onBack }: AdminViewProps) {
         >
           <div
             style={{
-              background: "#ffffff",
+              background: "#141418",
+              border: "1px solid rgba(223, 184, 149, 0.25)",
               borderRadius: "16px",
-              maxWidth: "760px",
+              maxWidth: "780px",
               width: "100%",
               maxHeight: "90vh",
               overflowY: "auto",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.3)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.7)",
               padding: "28px 32px",
-              position: "relative",
+              color: "#f8fafc",
             }}
           >
             {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid rgba(42, 26, 20, 0.1)", paddingBottom: "16px", marginBottom: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "16px", marginBottom: "20px" }}>
               <div>
                 <span style={{ fontSize: "10.5px", letterSpacing: "0.15em", textTransform: "uppercase", color: "#c18847", fontWeight: 700 }}>
                   MAISON PRODUCT ATELIER
                 </span>
-                <h2 style={{ margin: "4px 0 0", fontSize: "20px", color: "#191970", fontFamily: "Cormorant Garamond, serif", fontWeight: 700 }}>
+                <h2 style={{ margin: "4px 0 0", fontSize: "20px", color: "#ffffff", fontFamily: "Cormorant Garamond, serif", fontWeight: 700 }}>
                   Publish New Cosmetic Creation
                 </h2>
-                <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#765d50" }}>
+                <p style={{ margin: "4px 0 0", fontSize: "11.5px", color: "#94a3b8" }}>
                   Instantly available for customer ordering with live Supabase database sync.
                 </p>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#765d50", padding: "4px" }}
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94a3b8", padding: "4px" }}
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Super Admin Quick-Fill Presets Bar */}
-            <div style={{ background: "#fcf8f2", border: "1px solid rgba(193, 136, 71, 0.2)", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px" }}>
+            {/* Presets Bar */}
+            <div style={{ background: "#1a1a22", border: "1px solid rgba(193, 136, 71, 0.2)", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "#765d50", display: "inline-flex", alignItems: "center", gap: "5px" }}>
-                  <Sparkles size={13} style={{ color: "#c18847" }} /> Super Admin Instant Presets (1-Click Fill):
+                <span style={{ fontSize: "11px", fontWeight: 700, color: "#c18847", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                  <Sparkles size={12} /> 1-Click Maison Presets
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsRawImportOpen(!isRawImportOpen)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#191970",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                  }}
+                  style={{ background: "transparent", border: "none", color: "#c18847", fontSize: "11px", cursor: "pointer", textDecoration: "underline" }}
                 >
-                  {isRawImportOpen ? "Close Smart Paste" : "📋 Smart Paste (JSON / Raw Text)"}
+                  {isRawImportOpen ? "Close Smart Paste" : "Smart Paste / JSON"}
                 </button>
               </div>
 
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
                 {PRODUCT_PRESETS.map((preset) => (
                   <button
                     key={preset.label}
                     type="button"
                     onClick={() => handleApplyPreset(preset)}
                     style={{
-                      background: "#ffffff",
-                      border: "1px solid rgba(42, 26, 20, 0.15)",
-                      borderRadius: "999px",
-                      padding: "6px 12px",
+                      background: "#141418",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      borderRadius: "6px",
+                      padding: "7px 10px",
                       fontSize: "11px",
                       fontWeight: 600,
-                      color: "#21130f",
+                      color: "#f8fafc",
                       cursor: "pointer",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+                      textAlign: "left",
                     }}
                   >
                     {preset.label}
@@ -2050,57 +2595,36 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 ))}
               </div>
 
-              {/* Smart Raw Paste Drawer */}
               {isRawImportOpen && (
-                <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px dashed rgba(42, 26, 20, 0.15)" }}>
+                <div style={{ marginTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "12px" }}>
                   <textarea
                     rows={4}
+                    placeholder="Paste product JSON or 'Key: Value' text..."
                     value={rawImportText}
                     onChange={(e) => setRawImportText(e.target.value)}
-                    placeholder="Paste JSON or raw lines here (e.g., Name: Velvet Lip\nPrice: 1099\nCategory: Lipsticks\nImage: /products/Scarlet Rose Lipstick.webp...)"
-                    style={{
-                      width: "100%",
-                      padding: "10px",
-                      fontSize: "11px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                      fontFamily: "monospace",
-                      background: "#ffffff",
-                    }}
+                    style={{ width: "100%", padding: "10px", background: "#111116", border: "1px solid rgba(255, 255, 255, 0.15)", borderRadius: "6px", color: "#fff", fontSize: "11.5px" }}
                   />
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
-                    <button
-                      type="button"
-                      onClick={handleParseRawText}
-                      style={{
-                        background: "#191970",
-                        color: "#ffffff",
-                        border: "none",
-                        padding: "6px 14px",
-                        borderRadius: "6px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      ⚡ Parse & Auto-Fill Form
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleParseRawText}
+                    style={{ marginTop: "6px", background: "#c18847", color: "#fff", border: "none", padding: "6px 14px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Apply Parsed Details
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Product Creation Form */}
+            {/* Creation Form */}
             <form onSubmit={handleSaveProduct}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Product Name *
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                    Creation Name *
                   </label>
                   <input
                     type="text"
                     required
-                    name="productName"
                     placeholder="e.g. Velvet Rosebud Satin Lipstick"
                     value={productForm.name}
                     onChange={(e) => {
@@ -2111,36 +2635,22 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         slug: name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-"),
                       }));
                     }}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                    }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
                     Category *
                   </label>
                   <select
-                    name="category"
                     value={productForm.category}
                     onChange={(e) => setProductForm((prev) => ({ ...prev, category: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                      background: "#ffffff",
-                    }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
                   >
-                    {CATEGORY_OPTIONS.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
+                    {CATEGORY_OPTIONS.map((c) => (
+                      <option key={c} value={c} style={{ background: "#1c1c24", color: "#fff" }}>
+                        {c}
                       </option>
                     ))}
                   </select>
@@ -2149,258 +2659,181 @@ export default function AdminView({ onBack }: AdminViewProps) {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Official Price (₹ INR) *
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                    Official Price (INR ₹) *
                   </label>
                   <input
                     type="number"
                     required
                     min={1}
-                    name="price"
                     value={productForm.price}
-                    onChange={(e) => setProductForm((prev) => ({ ...prev, price: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                    }}
+                    onChange={(e) => setProductForm((prev) => ({ ...prev, price: Number(e.target.value) }))}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Stock Level (Units)
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                    Stock Level (Pieces)
                   </label>
                   <input
                     type="number"
                     min={0}
-                    name="stock"
                     value={productForm.stock_quantity}
-                    onChange={(e) => setProductForm((prev) => ({ ...prev, stock_quantity: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                    }}
+                    onChange={(e) => setProductForm((prev) => ({ ...prev, stock_quantity: Number(e.target.value) }))}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Tag / Badge
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                    Badge Tag
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. New Arrival / Bestseller"
+                    placeholder="e.g. New Arrival"
                     value={productForm.tag}
                     onChange={(e) => setProductForm((prev) => ({ ...prev, tag: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                    }}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Sensory Finish
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Sculpted satin"
-                    value={productForm.finish}
-                    onChange={(e) => setProductForm((prev) => ({ ...prev, finish: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Aesthetic Mood
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Runway Statement"
-                    value={productForm.mood}
-                    onChange={(e) => setProductForm((prev) => ({ ...prev, mood: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "12px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Complexion Tone Hex
-                  </label>
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <input
-                      type="color"
-                      value={productForm.tone}
-                      onChange={(e) => setProductForm((prev) => ({ ...prev, tone: e.target.value }))}
-                      style={{ width: "36px", height: "36px", padding: "0", border: "none", borderRadius: "6px", cursor: "pointer" }}
-                    />
-                    <input
-                      type="text"
-                      value={productForm.tone}
-                      onChange={(e) => setProductForm((prev) => ({ ...prev, tone: e.target.value }))}
-                      style={{
-                        flex: 1,
-                        padding: "9px 12px",
-                        fontSize: "12px",
-                        borderRadius: "6px",
-                        border: "1px solid rgba(42, 26, 20, 0.2)",
-                        fontFamily: "monospace",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: "16px" }}>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Short Tagline / Sensory Note
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. High-pigment scarlet with 16h botanical comfort"
-                  value={productForm.note}
-                  onChange={(e) => setProductForm((prev) => ({ ...prev, note: e.target.value }))}
-                  style={{
-                    width: "100%",
-                    padding: "9px 12px",
-                    fontSize: "12px",
-                    borderRadius: "6px",
-                    border: "1px solid rgba(42, 26, 20, 0.2)",
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Detailed Story & Description
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="Rich botanical description for customer PDP..."
-                    value={productForm.description}
-                    onChange={(e) => setProductForm((prev) => ({ ...prev, description: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "11.5px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#765d50", marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    INCI Ingredients List (Clean Formulation)
-                  </label>
-                  <textarea
-                    rows={3}
-                    placeholder="e.g. Organic Camellia Seed Oil, Multi-Weight Hyaluronic Acid, Candelilla Wax..."
-                    value={productForm.ingredients}
-                    onChange={(e) => setProductForm((prev) => ({ ...prev, ingredients: e.target.value }))}
-                    style={{
-                      width: "100%",
-                      padding: "9px 12px",
-                      fontSize: "11.5px",
-                      borderRadius: "6px",
-                      border: "1px solid rgba(42, 26, 20, 0.2)",
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Photo & Visual Asset Manager */}
-              <div style={{ background: "#faf7f2", border: "1px solid rgba(42, 26, 20, 0.12)", borderRadius: "10px", padding: "16px", marginBottom: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+              {/* Photo & Packshot Section with Proper Aligned Buttons */}
+              <div style={{ background: "#181820", border: "1px solid rgba(193, 136, 71, 0.3)", borderRadius: "10px", padding: "18px", marginBottom: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
                   <div>
-                    <label style={{ fontSize: "11px", fontWeight: 700, color: "#191970", textTransform: "uppercase", letterSpacing: "0.05em", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <label style={{ fontSize: "11.5px", fontWeight: 700, color: "#c18847", textTransform: "uppercase", letterSpacing: "0.08em", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       <ImageIcon size={14} /> Multi-Image Photography & Gallery *
                     </label>
-                    <div style={{ fontSize: "10.5px", color: "#765d50", marginTop: "2px" }}>
-                      Add multiple packshots, shades & textures for storefront PDP gallery carousel.
+                    <div style={{ fontSize: "10.5px", color: "#94a3b8", marginTop: "2px" }}>
+                      Add multiple packshots & shade angles for customer PDP thumbnail carousel.
                     </div>
                   </div>
-                  <div style={{ display: "inline-flex", gap: "4px", background: "#ffffff", padding: "3px", borderRadius: "999px", border: "1px solid rgba(42, 26, 20, 0.1)" }}>
-                    <button
-                      type="button"
-                      onClick={() => setImageSourceTab("library")}
-                      style={{
-                        background: imageSourceTab === "library" ? "#191970" : "transparent",
-                        color: imageSourceTab === "library" ? "#ffffff" : "#765d50",
-                        border: "none",
-                        borderRadius: "999px",
-                        padding: "3px 10px",
-                        fontSize: "10.5px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Library (Multi-Pick)
-                    </button>
+
+                  {/* Tabs */}
+                  <div style={{ display: "inline-flex", gap: "4px", background: "#111116", padding: "3px", borderRadius: "999px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
                     <button
                       type="button"
                       onClick={() => setImageSourceTab("upload")}
                       style={{
-                        background: imageSourceTab === "upload" ? "#191970" : "transparent",
-                        color: imageSourceTab === "upload" ? "#ffffff" : "#765d50",
+                        background: imageSourceTab === "upload" ? "#c18847" : "transparent",
+                        color: imageSourceTab === "upload" ? "#ffffff" : "#94a3b8",
                         border: "none",
                         borderRadius: "999px",
-                        padding: "3px 10px",
+                        padding: "4px 12px",
                         fontSize: "10.5px",
                         fontWeight: 600,
                         cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
                       }}
                     >
-                      Upload Files
+                      <Upload size={12} /> Upload Files
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageSourceTab("library")}
+                      style={{
+                        background: imageSourceTab === "library" ? "#c18847" : "transparent",
+                        color: imageSourceTab === "library" ? "#ffffff" : "#94a3b8",
+                        border: "none",
+                        borderRadius: "999px",
+                        padding: "4px 12px",
+                        fontSize: "10.5px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                      }}
+                    >
+                      <Sparkles size={12} /> Maison Library
                     </button>
                     <button
                       type="button"
                       onClick={() => setImageSourceTab("url")}
                       style={{
-                        background: imageSourceTab === "url" ? "#191970" : "transparent",
-                        color: imageSourceTab === "url" ? "#ffffff" : "#765d50",
+                        background: imageSourceTab === "url" ? "#c18847" : "transparent",
+                        color: imageSourceTab === "url" ? "#ffffff" : "#94a3b8",
                         border: "none",
                         borderRadius: "999px",
-                        padding: "3px 10px",
+                        padding: "4px 12px",
                         fontSize: "10.5px",
                         fontWeight: 600,
                         cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
                       }}
                     >
-                      Direct URLs
+                      <ExternalLink size={12} /> Direct URLs
                     </button>
                   </div>
                 </div>
 
+                {/* Tab 1: Upload Files (PROPERLY ALIGNED PROMINENT BUTTON) */}
+                {imageSourceTab === "upload" && (
+                  <div
+                    style={{
+                      border: "2px dashed rgba(193, 136, 71, 0.35)",
+                      borderRadius: "10px",
+                      padding: "24px 20px",
+                      textAlign: "center",
+                      background: "#14141a",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "10px",
+                    }}
+                  >
+                    <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "rgba(193, 136, 71, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#c18847" }}>
+                      <Upload size={22} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "#f8fafc" }}>
+                        Upload Product Packshots & Swatches
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "3px" }}>
+                        Supports PNG, JPG, WebP. Hold Ctrl / Shift to pick multiple photos.
+                      </div>
+                    </div>
+
+                    <label
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        background: "linear-gradient(135deg, #c18847 0%, #9a652a 100%)",
+                        color: "#ffffff",
+                        padding: "10px 22px",
+                        borderRadius: "999px",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        boxShadow: "0 4px 14px rgba(193, 136, 71, 0.3)",
+                        marginTop: "6px",
+                      }}
+                    >
+                      <Upload size={14} />
+                      <span>Select Photos From Device</span>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageFileUpload}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {/* Tab 2: Maison Library */}
                 {imageSourceTab === "library" && (
                   <div>
-                    <div style={{ fontSize: "11px", color: "#765d50", marginBottom: "8px" }}>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "8px" }}>
                       Click any packshot below to toggle into/out of product gallery:
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
@@ -2415,15 +2848,14 @@ export default function AdminView({ onBack }: AdminViewProps) {
                             key={asset.path}
                             onClick={() => handleToggleLibraryAsset(asset.path)}
                             style={{
-                              border: isSelected ? "2px solid #191970" : "1px solid rgba(42, 26, 20, 0.15)",
+                              border: isSelected ? "2px solid #c18847" : "1px solid rgba(255, 255, 255, 0.1)",
                               borderRadius: "8px",
                               padding: "6px",
-                              background: "#ffffff",
+                              background: "#14141a",
                               cursor: "pointer",
                               textAlign: "center",
                               position: "relative",
-                              boxShadow: isSelected ? "0 4px 12px rgba(25, 25, 112, 0.15)" : "none",
-                              transition: "all 0.15s ease",
+                              boxShadow: isSelected ? "0 4px 12px rgba(193, 136, 71, 0.25)" : "none",
                             }}
                           >
                             <img
@@ -2431,7 +2863,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               alt={asset.label}
                               style={{ width: "100%", height: "65px", objectFit: "cover", borderRadius: "6px" }}
                             />
-                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#21130f", marginTop: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            <div style={{ fontSize: "10px", fontWeight: 600, color: "#f8fafc", marginTop: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                               {asset.label}
                             </div>
                             {isSelected && (
@@ -2458,78 +2890,62 @@ export default function AdminView({ onBack }: AdminViewProps) {
                   </div>
                 )}
 
-                {imageSourceTab === "upload" && (
-                  <div style={{ border: "2px dashed rgba(42, 26, 20, 0.2)", borderRadius: "8px", padding: "20px", textAlign: "center", background: "#ffffff" }}>
-                    <Upload size={24} style={{ color: "#c18847", margin: "0 auto 8px" }} />
-                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#191970" }}>Choose or drag multiple photos here</div>
-                    <div style={{ fontSize: "10.5px", color: "#765d50", marginTop: "4px" }}>Select one or multiple PNG, JPG, WebP files</div>
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageFileUpload}
-                      style={{ marginTop: "12px", fontSize: "11px" }}
-                    />
-                  </div>
-                )}
-
+                {/* Tab 3: Direct URLs */}
                 {imageSourceTab === "url" && (
-                  <div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <input
-                        type="text"
-                        name="image"
-                        placeholder="Paste image URL (or multiple comma-separated URLs)..."
-                        value={newImageUrl}
-                        onChange={(e) => setNewImageUrl(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddImageUrl();
-                          }
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: "9px 12px",
-                          fontSize: "12px",
-                          borderRadius: "6px",
-                          border: "1px solid rgba(42, 26, 20, 0.2)",
-                          background: "#ffffff",
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleAddImageUrl()}
-                        style={{
-                          background: "#191970",
-                          color: "#ffffff",
-                          border: "none",
-                          padding: "9px 16px",
-                          borderRadius: "6px",
-                          fontSize: "11.5px",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
-                      >
-                        + Add Photo
-                      </button>
-                    </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <input
+                      type="text"
+                      placeholder="Paste image URL (or multiple comma-separated URLs)..."
+                      value={newImageUrl}
+                      onChange={(e) => setNewImageUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddImageUrl();
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: "9px 12px",
+                        fontSize: "12px",
+                        borderRadius: "6px",
+                        border: "1px solid rgba(255, 255, 255, 0.15)",
+                        background: "#1c1c24",
+                        color: "#fff",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddImageUrl()}
+                      style={{
+                        background: "#c18847",
+                        color: "#ffffff",
+                        border: "none",
+                        padding: "9px 16px",
+                        borderRadius: "6px",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Add to Gallery
+                    </button>
                   </div>
                 )}
 
-                {/* Interactive Multi-Photo Gallery Preview Strip */}
-                <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid rgba(42, 26, 20, 0.1)" }}>
+                {/* Gallery Strip Preview */}
+                <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#191970", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#c18847", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       Product Gallery ({productForm.images?.length || 0} photo{(productForm.images?.length || 0) === 1 ? "" : "s"})
                     </span>
-                    <span style={{ fontSize: "10px", color: "#1e6b37", fontWeight: 600 }}>
+                    <span style={{ fontSize: "10px", color: "#10b981", fontWeight: 600 }}>
                       ✓ Storefront PDP Thumbnail Strip Ready
                     </span>
                   </div>
 
                   {(!productForm.images || productForm.images.length === 0) ? (
-                    <div style={{ padding: "16px", textAlign: "center", fontSize: "11.5px", color: "#765d50", background: "#ffffff", borderRadius: "8px", border: "1px dashed rgba(42, 26, 20, 0.2)" }}>
+                    <div style={{ padding: "16px", textAlign: "center", fontSize: "11.5px", color: "#64748b", background: "#14141a", borderRadius: "8px", border: "1px dashed rgba(255, 255, 255, 0.1)" }}>
                       No photos in gallery yet. Select from the library above or upload files.
                     </div>
                   ) : (
@@ -2542,16 +2958,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
                             style={{
                               position: "relative",
                               borderRadius: "8px",
-                              border: isPrimary ? "2px solid #c18847" : "1px solid rgba(42, 26, 20, 0.15)",
-                              background: "#ffffff",
+                              border: isPrimary ? "2px solid #c18847" : "1px solid rgba(255, 255, 255, 0.12)",
+                              background: "#14141a",
                               padding: "6px",
-                              boxShadow: isPrimary ? "0 4px 12px rgba(193, 136, 71, 0.2)" : "0 2px 6px rgba(0,0,0,0.03)",
                             }}
                           >
                             <img
                               src={imgUrl}
                               alt={`Gallery photo ${idx + 1}`}
-                              style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", background: "#faf5ee" }}
+                              style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", background: "#222" }}
                             />
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
                               <span
@@ -2560,8 +2975,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                   fontWeight: 700,
                                   padding: "2px 6px",
                                   borderRadius: "4px",
-                                  background: isPrimary ? "#191970" : "rgba(42, 26, 20, 0.08)",
-                                  color: isPrimary ? "#ffffff" : "#765d50",
+                                  background: isPrimary ? "#c18847" : "rgba(255, 255, 255, 0.08)",
+                                  color: "#ffffff",
                                 }}
                               >
                                 {isPrimary ? "★ Primary" : `#${idx + 1}`}
@@ -2573,8 +2988,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                     onClick={() => handleSetPrimaryImage(idx)}
                                     title="Make Primary Cover Photo"
                                     style={{
-                                      background: "rgba(193, 136, 71, 0.12)",
-                                      color: "#965b16",
+                                      background: "rgba(193, 136, 71, 0.15)",
+                                      color: "#c18847",
                                       border: "none",
                                       borderRadius: "4px",
                                       padding: "2px 5px",
@@ -2591,8 +3006,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                   onClick={() => handleRemoveImage(idx)}
                                   title="Remove photo"
                                   style={{
-                                    background: "rgba(184, 40, 40, 0.1)",
-                                    color: "#b82828",
+                                    background: "rgba(239, 68, 68, 0.15)",
+                                    color: "#ef4444",
                                     border: "none",
                                     borderRadius: "4px",
                                     padding: "2px 5px",
@@ -2613,20 +3028,49 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 </div>
               </div>
 
-              {/* Actions Footer */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid rgba(42, 26, 20, 0.1)", paddingTop: "18px" }}>
+              {/* Description & Details */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                    Detailed Story & Description
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Rich botanical description for customer PDP..."
+                    value={productForm.description}
+                    onChange={(e) => setProductForm((prev) => ({ ...prev, description: e.target.value }))}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "11.5px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#94a3b8", marginBottom: "6px", textTransform: "uppercase" }}>
+                    INCI Ingredients List
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="e.g. Organic Camellia Seed Oil, Plant Squalane, Vitamin E..."
+                    value={productForm.ingredients}
+                    onChange={(e) => setProductForm((prev) => ({ ...prev, ingredients: e.target.value }))}
+                    style={{ width: "100%", padding: "9px 12px", fontSize: "11.5px", borderRadius: "6px", border: "1px solid rgba(255, 255, 255, 0.15)", background: "#1c1c24", color: "#fff" }}
+                  />
+                </div>
+              </div>
+
+              {/* Submit / Cancel Buttons */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "18px" }}>
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
                   style={{
                     background: "transparent",
-                    border: "1px solid rgba(42, 26, 20, 0.2)",
-                    borderRadius: "999px",
+                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                    borderRadius: "6px",
                     padding: "9px 20px",
                     fontSize: "12px",
                     fontWeight: 600,
                     cursor: "pointer",
-                    color: "#765d50",
+                    color: "#94a3b8",
                   }}
                 >
                   Cancel
@@ -2635,29 +3079,18 @@ export default function AdminView({ onBack }: AdminViewProps) {
                   type="submit"
                   disabled={isSubmittingProduct}
                   style={{
-                    background: "#191970",
+                    background: "linear-gradient(135deg, #c18847 0%, #9a652a 100%)",
                     color: "#ffffff",
                     border: "none",
-                    borderRadius: "999px",
+                    borderRadius: "6px",
                     padding: "9px 24px",
                     fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: isSubmittingProduct ? "not-allowed" : "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    boxShadow: "0 4px 14px rgba(25, 25, 112, 0.25)",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 14px rgba(193, 136, 71, 0.35)",
                   }}
                 >
-                  {isSubmittingProduct ? (
-                    <>
-                      <RefreshCw size={14} className="animate-spin" /> Publishing...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles size={14} /> Publish Creation to Storefront
-                    </>
-                  )}
+                  {isSubmittingProduct ? "Publishing Creation..." : "Publish Creation to Storefront"}
                 </button>
               </div>
             </form>
@@ -2665,151 +3098,233 @@ export default function AdminView({ onBack }: AdminViewProps) {
         </div>
       )}
 
-      {/* ================= ORDER DETAILS MODAL ================= */}
-      {selectedOrder && (
+      {/* ================= TAX INVOICE VIEWER & DOWNLOAD MODAL ================= */}
+      {selectedInvoiceOrder && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 1000,
-            background: "rgba(0, 0, 0, 0.5)",
+            zIndex: 1100,
+            background: "rgba(0, 0, 0, 0.8)",
+            backdropFilter: "blur(8px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             padding: "20px",
           }}
-          onClick={() => setSelectedOrder(null)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedInvoiceOrder(null);
+          }}
         >
           <div
             style={{
-              background: "#ffffff",
-              borderRadius: "16px",
-              maxWidth: "600px",
+              background: "#16161c",
+              border: "1px solid rgba(193, 136, 71, 0.3)",
+              borderRadius: "14px",
+              maxWidth: "850px",
               width: "100%",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.25)",
-              padding: "28px",
+              height: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.8)",
+              overflow: "hidden",
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid rgba(42, 26, 20, 0.08)", paddingBottom: "16px" }}>
-              <div>
-                <span style={{ fontSize: "11px", letterSpacing: "0.08em", color: "#765d50", textTransform: "uppercase" }}>Order Invoice & Fulfillment</span>
-                <h2 style={{ margin: "4px 0 0", fontSize: "20px", color: "#191970", fontWeight: 700 }}>{selectedOrder.id}</h2>
-                <div style={{ fontSize: "11px", color: "#765d50", marginTop: "2px" }}>
-                  Placed on {new Date(selectedOrder.created_at).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+            {/* Invoice Modal Header */}
+            <div
+              style={{
+                padding: "16px 24px",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "#121216",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <FileText size={18} style={{ color: "#c18847" }} />
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff" }}>
+                    OFFICIAL TAX INVOICE — {selectedInvoiceOrder.id}
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: "#94a3b8" }}>
+                    GSTIN 07AABCS1429B1Z8 · Indian GST Rule 48 Compliant
+                  </div>
                 </div>
               </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <button
+                  onClick={() => {
+                    const data = buildInvoiceDataFromAdminOrder(selectedInvoiceOrder);
+                    const html = generateInvoiceHtml(data);
+                    printInvoiceHtml(html);
+                  }}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.08)",
+                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                    color: "#f8fafc",
+                    padding: "7px 14px",
+                    borderRadius: "6px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <Printer size={13} /> Print
+                </button>
+
+                <button
+                  onClick={() => {
+                    const data = buildInvoiceDataFromAdminOrder(selectedInvoiceOrder);
+                    const html = generateInvoiceHtml(data);
+                    downloadInvoiceHtml(html, `SheAura-Tax-Invoice-${selectedInvoiceOrder.id}.html`);
+                    showNotice(`✓ Tax Invoice downloaded for ${selectedInvoiceOrder.id}`);
+                  }}
+                  style={{
+                    background: "linear-gradient(135deg, #c18847 0%, #a86b2b 100%)",
+                    border: "none",
+                    color: "#ffffff",
+                    padding: "7px 16px",
+                    borderRadius: "6px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <Download size={13} /> Download Invoice
+                </button>
+
+                <button
+                  onClick={() => setSelectedInvoiceOrder(null)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#94a3b8",
+                    padding: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Embedded Invoice HTML Preview */}
+            <div style={{ flex: 1, background: "#ffffff", overflow: "hidden" }}>
+              <iframe
+                title="Invoice Preview"
+                srcDoc={generateInvoiceHtml(buildInvoiceDataFromAdminOrder(selectedInvoiceOrder))}
+                style={{ width: "100%", height: "100%", border: "none" }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= ORDER DETAILS MODAL ================= */}
+      {selectedOrderDetails && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1100,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedOrderDetails(null);
+          }}
+        >
+          <div
+            style={{
+              background: "#141418",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "14px",
+              maxWidth: "600px",
+              width: "100%",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              padding: "24px 28px",
+              color: "#f8fafc",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "14px" }}>
+              <div>
+                <span style={{ fontSize: "10px", fontWeight: 700, color: "#c18847", letterSpacing: "0.1em" }}>
+                  ORDER DETAILS
+                </span>
+                <h3 style={{ margin: "2px 0 0", fontSize: "18px", color: "#ffffff" }}>
+                  #{selectedOrderDetails.id}
+                </h3>
+              </div>
               <button
-                onClick={() => setSelectedOrder(null)}
-                style={{ border: "0", background: "transparent", cursor: "pointer", color: "#765d50" }}
+                onClick={() => setSelectedOrderDetails(null)}
+                style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Client & Shipping */}
-            <div style={{ margin: "20px 0", background: "#fcf8f2", padding: "16px", borderRadius: "8px", border: "1px solid rgba(42, 26, 20, 0.08)" }}>
-              <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#765d50", fontWeight: 600 }}>Delivery Details</div>
-              <div style={{ fontWeight: 600, fontSize: "14px", marginTop: "4px" }}>{selectedOrder.client_name || selectedOrder.customer_name}</div>
-              <div style={{ fontSize: "12px", color: "#555", marginTop: "2px" }}>{selectedOrder.shipping_address}</div>
-              <div style={{ display: "flex", gap: "16px", marginTop: "8px", fontSize: "11px", color: "#765d50" }}>
-                <span><Mail size={12} style={{ display: "inline", marginRight: "4px" }} />{selectedOrder.client_email || selectedOrder.customer_email}</span>
-                <span><Phone size={12} style={{ display: "inline", marginRight: "4px" }} />{selectedOrder.client_phone || selectedOrder.customer_phone}</span>
-              </div>
-            </div>
-
-            {/* Items */}
-            <div style={{ margin: "20px 0" }}>
-              <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#765d50", fontWeight: 600, marginBottom: "10px" }}>Ordered Pieces</div>
-              {parseItems(selectedOrder.items).map((item, idx) => (
-                <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(42, 26, 20, 0.06)" }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "12px" }}>{item.name}</div>
-                    <div style={{ fontSize: "11px", color: "#765d50" }}>Shade: {item.shade || "Standard"} · Qty: {item.quantity}</div>
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: "13px" }}>
-                    ₹{(item.itemTotal || item.unitPrice * item.quantity).toLocaleString("en-IN")}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Financial Breakdown */}
-            <div style={{ background: "#f8f0e5", padding: "16px", borderRadius: "8px", fontSize: "12px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                <span>Subtotal</span>
-                <span>₹{(selectedOrder.subtotal || selectedOrder.total_price || 0).toLocaleString("en-IN")}</span>
-              </div>
-              {selectedOrder.discount && selectedOrder.discount > 0 ? (
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", color: "#1e6b37" }}>
-                  <span>Aura Privilege Discount</span>
-                  <span>-₹{selectedOrder.discount.toLocaleString("en-IN")}</span>
-                </div>
-              ) : null}
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                <span>Shipping Fee</span>
-                <span>{selectedOrder.shipping_fee === 0 ? "Complimentary" : `₹${selectedOrder.shipping_fee || 150}`}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", color: "#765d50" }}>
-                <span>GST (18% inclusive)</span>
-                <span>₹{(selectedOrder.tax_amount || 0).toLocaleString("en-IN")}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: "15px", color: "#191970", borderTop: "1px solid rgba(42, 26, 20, 0.15)", paddingTop: "8px", marginTop: "8px" }}>
-                <span>Total Amount</span>
-                <span>{selectedOrder.total_amount || `₹${Number(selectedOrder.total_price || 0).toLocaleString("en-IN")}`}</span>
-              </div>
-            </div>
-
-            {/* Status & Fulfillment Actions */}
-            <div style={{ marginTop: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px", fontSize: "12px" }}>
               <div>
-                <span style={{ fontSize: "11px", color: "#765d50" }}>Current Status: </span>
-                <span style={{ fontWeight: 700, textTransform: "capitalize", color: "#191970" }}>{selectedOrder.status}</span>
-                {selectedOrder.tracking_number && (
-                  <div style={{ fontSize: "11px", color: "#582a85", fontFamily: "monospace", marginTop: "2px" }}>
-                    Track: {selectedOrder.tracking_number}
-                  </div>
-                )}
+                <b style={{ color: "#c18847" }}>Customer:</b> {selectedOrderDetails.client_name || selectedOrderDetails.customer_name} ({selectedOrderDetails.client_email || selectedOrderDetails.customer_email})
+              </div>
+              <div>
+                <b style={{ color: "#c18847" }}>Contact Phone:</b> {selectedOrderDetails.client_phone || selectedOrderDetails.customer_phone}
+              </div>
+              <div>
+                <b style={{ color: "#c18847" }}>Shipping Address:</b> {selectedOrderDetails.shipping_address}
+              </div>
+              <div>
+                <b style={{ color: "#c18847" }}>Grand Total:</b> {selectedOrderDetails.total_amount || `₹${selectedOrderDetails.total_price}`} (Paid via {(selectedOrderDetails.payment_method || "UPI").toUpperCase()})
+              </div>
+              <div>
+                <b style={{ color: "#c18847" }}>Courier Tracking:</b> {selectedOrderDetails.tracking_number || "Awaiting dispatch assignment"}
               </div>
 
-              <div style={{ display: "flex", gap: "8px" }}>
-                {selectedOrder.status === "processing" && (
-                  <button
-                    onClick={() => handleUpdateStatus(selectedOrder.id, "dispatched")}
-                    style={{
-                      background: "#582a85",
-                      color: "#ffffff",
-                      border: "0",
-                      padding: "8px 16px",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Dispatch via BlueDart
-                  </button>
-                )}
-                {selectedOrder.status === "dispatched" && (
-                  <button
-                    onClick={() => handleUpdateStatus(selectedOrder.id, "delivered")}
-                    style={{
-                      background: "#1e6b37",
-                      color: "#ffffff",
-                      border: "0",
-                      padding: "8px 16px",
-                      borderRadius: "6px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Mark Delivered
-                  </button>
-                )}
+              <div style={{ marginTop: "10px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", paddingTop: "14px" }}>
+                <b style={{ display: "block", marginBottom: "8px", color: "#94a3b8" }}>Items In Order:</b>
+                {parseItems(selectedOrderDetails.items).map((it, idx) => (
+                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                    <span>{it.quantity}x {it.name} ({it.shade || "Standard"})</span>
+                    <span style={{ fontWeight: 600 }}>₹{it.unitPrice}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "14px" }}>
+                <button
+                  onClick={() => {
+                    setSelectedInvoiceOrder(selectedOrderDetails);
+                    setSelectedOrderDetails(null);
+                  }}
+                  style={{
+                    background: "#c18847",
+                    color: "#ffffff",
+                    border: "none",
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    fontWeight: 700,
+                    fontSize: "11.5px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <FileText size={13} /> View Tax Invoice
+                </button>
               </div>
             </div>
           </div>

@@ -515,3 +515,170 @@ export function generateInvoiceHtml(data: InvoiceData): string {
 </body>
 </html>`;
 }
+
+/**
+ * Builds a compliant InvoiceData object from any AdminOrder or Supabase order payload
+ */
+export function buildInvoiceDataFromAdminOrder(order: any): InvoiceData {
+  let rawItems: any[] = [];
+  if (Array.isArray(order.items)) {
+    rawItems = order.items;
+  } else if (typeof order.items === "string") {
+    try {
+      rawItems = JSON.parse(order.items);
+    } catch {}
+  }
+  if (!Array.isArray(rawItems) || rawItems.length === 0) {
+    rawItems = [
+      {
+        name: "She'Aura Couture Collection",
+        shade: "Signature Edit",
+        quantity: order.items_count || 1,
+        unitPrice: typeof order.total_price === "number" ? order.total_price : 1099,
+      },
+    ];
+  }
+
+  let totalNum = typeof order.total_price === "number" ? order.total_price : 0;
+  if (!totalNum && order.total_amount) {
+    totalNum = parseFloat(String(order.total_amount).replace(/[^0-9.]/g, "")) || 0;
+  }
+  if (!totalNum) totalNum = 1099;
+
+  const discountAmount = Number(order.discount || 0);
+  const subtotal = Number(order.subtotal || totalNum + discountAmount);
+  const shippingFee = Number(order.shipping_fee || 0);
+  const grandTotal = totalNum;
+
+  const taxableSubtotal = Math.round((grandTotal / 1.18) * 100) / 100;
+  const totalGst = Math.round((grandTotal - taxableSubtotal) * 100) / 100;
+  const cgstTotal = Math.round((totalGst / 2) * 100) / 100;
+  const sgstTotal = Math.round((totalGst - cgstTotal) * 100) / 100;
+
+  const invoiceItems: InvoiceItem[] = rawItems.map((item: any, idx: number) => {
+    const qty = Number(item.quantity) || 1;
+    const unitP =
+      typeof item.unitPrice === "number"
+        ? item.unitPrice
+        : parseFloat(String(item.unitPrice || item.price || 0).replace(/[^0-9.]/g, "")) ||
+          Math.round(grandTotal / Math.max(1, qty));
+    const lineTotal =
+      typeof item.itemTotal === "number"
+        ? item.itemTotal
+        : typeof item.priceNum === "number"
+        ? item.priceNum * qty
+        : unitP * qty;
+    const itemTaxable = Math.round((lineTotal / 1.18) * 100) / 100;
+    const itemGst = Math.round((lineTotal - itemTaxable) * 100) / 100;
+    const itemCgst = Math.round((itemGst / 2) * 100) / 100;
+    const itemSgst = Math.round((itemGst - itemCgst) * 100) / 100;
+
+    const cat = String(item.name || "").toLowerCase();
+    const isPerfume = cat.includes("perfume") || cat.includes("extrait") || cat.includes("scent");
+
+    return {
+      slNo: idx + 1,
+      productName: item.name || "Maison Creation",
+      variantOrShade: item.shade || "Haute Finish",
+      hsnCode: isPerfume ? "33030010" : "33041000",
+      quantity: qty,
+      unitPrice: unitP,
+      taxableAmount: itemTaxable,
+      cgstRate: "9%",
+      cgstAmount: itemCgst,
+      sgstRate: "9%",
+      sgstAmount: itemSgst,
+      totalAmount: lineTotal,
+    };
+  });
+
+  const clientName = order.client_name || order.customer_name || "Maison Member";
+  const clientEmail = order.client_email || order.customer_email || "client@sheaura.com";
+  const clientPhone = order.client_phone || order.customer_phone || "+91 98200 11223";
+  const addr = order.shipping_address || "Haute Luxury Boulevard, Mumbai, Maharashtra 400001";
+
+  const addrParts = addr.split(",").map((s: string) => s.trim());
+  const city = addrParts.length >= 2 ? addrParts[addrParts.length - 2] : "Mumbai";
+  const state = addrParts.length >= 1 ? addrParts[addrParts.length - 1].split("-")[0].trim() : "Maharashtra";
+  const pincodeMatch = addr.match(/\b\d{6}\b/);
+  const pincode = pincodeMatch ? pincodeMatch[0] : "400001";
+
+  const cleanOrderId = order.id || `SH-${Date.now()}`;
+  const invCode = cleanOrderId.includes("-") ? cleanOrderId.split("-").pop() : cleanOrderId.slice(-6);
+
+  return {
+    invoiceNumber: `INV-${new Date().getFullYear()}-${String(invCode).toUpperCase()}`,
+    orderId: cleanOrderId,
+    date: order.created_at
+      ? new Date(order.created_at).toLocaleDateString("en-IN", { dateStyle: "long" })
+      : new Date().toLocaleDateString("en-IN", { dateStyle: "long" }),
+    seller: {
+      legalName: "She'Aura Haute Parfums & Cosmétiques Pvt. Ltd.",
+      brand: "SHE'AURA",
+      address: "DLF Promenade, Luxury Mall Wing, Vasant Kunj",
+      cityState: "New Delhi, Delhi 110070, India",
+      gstin: "07AABCS1429B1Z8",
+      pan: "AABCS1429B",
+      email: "concierge@sheaura.com",
+      phone: "+91 11 4982 0000",
+    },
+    buyer: {
+      fullName: clientName,
+      email: clientEmail,
+      phone: clientPhone,
+      address: addr,
+      city,
+      state,
+      pincode,
+    },
+    payment: {
+      method: (order.payment_method || "UPI").toUpperCase(),
+      status:
+        (order.payment_status || "paid").toLowerCase() === "paid"
+          ? "Confirmed & Verified"
+          : "Pending / Awaiting Delivery",
+      transactionRef: order.gateway_payment_id || `TXN-${Math.floor(100000000 + Math.random() * 900000000)}`,
+    },
+    items: invoiceItems,
+    deluxeSample: "Damask Rose Botanical Elixir Miniature (Complimentary)",
+    packaging: "She'Aura Signature Gold Keepsake Presentation",
+    summary: {
+      subtotal,
+      discountAmount,
+      discountCode: discountAmount > 0 ? "WELCOME10" : null,
+      taxableSubtotal,
+      cgstTotal,
+      sgstTotal,
+      totalGst,
+      shippingFee,
+      grandTotal,
+      amountInWords: numberToWords(grandTotal),
+    },
+  };
+}
+
+export function downloadInvoiceHtml(html: string, filename = "SheAura-Tax-Invoice.html") {
+  if (typeof window === "undefined") return;
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export function printInvoiceHtml(html: string) {
+  if (typeof window === "undefined") return;
+  const printWindow = window.open("", "_blank");
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 400);
+  }
+}

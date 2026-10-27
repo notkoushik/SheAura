@@ -70,15 +70,16 @@ test.describe("Administrative Gateway Separation & Route Protection Visual Suite
     await page.click("button:has-text('Authorize & Enter Console')");
 
     await expect(page.locator(".admin-console-root")).toBeVisible({ timeout: 12000 });
-    await expect(page.locator("button:has-text('Lock Studio')")).toBeVisible();
+    const logoutBtn = page.locator("button:has-text('Sign Out'), button:has-text('SIGN OUT'), button:has-text('Lock Studio')").first();
+    await expect(logoutBtn).toBeVisible();
 
     await page.screenshot({
       path: "tests/visual/screenshots/sheaura-admin-studio-authorized.png",
       fullPage: true,
     });
 
-    // Click Lock Studio to ensure session termination
-    await page.click("button:has-text('Lock Studio')");
+    // Click Sign Out / Lock Studio to ensure session termination
+    await logoutBtn.click();
     await page.waitForTimeout(600);
     expect(page.url()).toContain("/sheaura/login");
   });
