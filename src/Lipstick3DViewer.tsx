@@ -590,9 +590,13 @@ export default function Lipstick3DViewer({ onSelectShade, onOpenPdp }: Lipstick3
       controls.dispose();
       renderer.dispose();
       pmremGenerator.dispose();
-      casingGeo.dispose();
-      collarGeo.dispose();
-      bulletGeo.dispose();
+      casingGeo?.dispose();
+      collarGeo?.dispose();
+      collarRimGeo?.dispose();
+      casingTopRingGeo?.dispose();
+      frontFaceGeo?.dispose();
+      wallGeo?.dispose();
+      facetGeo?.dispose();
       container.innerHTML = "";
     };
   }, [viewMode]);

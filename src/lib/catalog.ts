@@ -903,9 +903,29 @@ export function mapSupabaseToStorefront(row: any): StorefrontProduct {
   const campaign = row.campaign_image_url || matchingDefault?.campaign || photos.model;
   const still = row.still || matchingDefault?.still || row.image_url || photos.lipstick;
 
-  const gallery = Array.isArray(row.gallery) && row.gallery.length > 0
-    ? row.gallery
-    : matchingDefault?.gallery || [image, still, campaign].filter(Boolean);
+  let gallery: string[] = [];
+  if (Array.isArray(row.gallery) && row.gallery.length > 0) {
+    gallery = row.gallery.filter(Boolean);
+  } else if (Array.isArray(row.images) && row.images.length > 0) {
+    gallery = row.images.filter(Boolean);
+  } else if (typeof row.gallery === "string") {
+    try {
+      const parsed = JSON.parse(row.gallery);
+      if (Array.isArray(parsed) && parsed.length > 0) gallery = parsed.filter(Boolean);
+    } catch {}
+  } else if (typeof row.images === "string") {
+    try {
+      const parsed = JSON.parse(row.images);
+      if (Array.isArray(parsed) && parsed.length > 0) gallery = parsed.filter(Boolean);
+    } catch {}
+  }
+
+  if (gallery.length === 0) {
+    gallery = matchingDefault?.gallery || [image, still, campaign].filter(Boolean);
+  }
+  if (image && !gallery.includes(image)) {
+    gallery.unshift(image);
+  }
 
   const shades = Array.isArray(row.shades) && row.shades.length > 0
     ? row.shades

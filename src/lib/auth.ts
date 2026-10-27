@@ -315,7 +315,7 @@ export async function adminSignIn(credentials: {
 }): Promise<{ success: boolean; token?: string; user?: any; error?: string }> {
   const { email, password, secretKey } = credentials;
 
-  // 1. First attempt verification against Backend API (/api/admin/login)
+  // 1. First attempt verification against Backend API (/api/admin/login) if running with backend
   try {
     const apiBase = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
     const res = await fetch(`${apiBase}/admin/login`, {
@@ -323,16 +323,23 @@ export async function adminSignIn(credentials: {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
     });
-    const data = await res.json();
-    if (res.ok && data.success && data.token) {
-      setAdminSession(data.token, data.user);
-      return { success: true, token: data.token, user: data.user };
-    }
-    if (!res.ok && data.error) {
-      return { success: false, error: data.error };
+
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const data = await res.json();
+      if (res.ok && data.success && data.token) {
+        setAdminSession(data.token, data.user);
+        return { success: true, token: data.token, user: data.user };
+      }
+      if (!res.ok && data.error) {
+        return { success: false, error: data.error };
+      }
+    } else {
+      // 405 or 404 returned by static hosting proxy (Vercel/Netlify SPA rewrite)
+      console.info("[AdminAuth] Backend proxy endpoint not returning JSON (status " + res.status + "). Proceeding to direct secure authentication.");
     }
   } catch (err) {
-    console.warn("[AdminAuth] Backend API offline or preview mode, validating local gate:", err);
+    console.info("[AdminAuth] Backend API offline or direct mode, validating secure vault gate.");
   }
 
   // 2. Direct Vault Key fallback

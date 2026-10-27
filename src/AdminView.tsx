@@ -98,6 +98,8 @@ export interface AdminProduct {
   price: number;
   stock_quantity?: number;
   image?: string;
+  images?: string[];
+  gallery?: string[];
   description?: string;
   short_description?: string;
   ingredients?: string;
@@ -281,6 +283,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
     price: 1099,
     stock_quantity: 50,
     image: "/products/Scarlet Rose Lipstick.webp",
+    images: ["/products/Scarlet Rose Lipstick.webp"],
     tag: "New Arrival",
     tone: "#a81920",
     finish: "Sculpted satin",
@@ -289,6 +292,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
     description: "An iconic beauty piece crafted with botanical extracts in the She'Aura Atelier.",
     ingredients: "Organic Camellia Seed Oil, Multi-Weight Hyaluronic Acid, Candelilla Wax, Botanical Pigments.",
   });
+  const [newImageUrl, setNewImageUrl] = useState("");
 
   // Load orders from Supabase
   const fetchOrders = async () => {
@@ -329,6 +333,22 @@ export default function AdminView({ onBack }: AdminViewProps) {
             const key = (row.slug || row.name || row.id).toLowerCase();
             if (!seen.has(key)) {
               seen.add(key);
+
+              let galleryImgs: string[] = [];
+              if (Array.isArray(row.images) && row.images.length > 0) {
+                row.images.forEach((img: any) => typeof img === "string" && img && galleryImgs.push(img));
+              } else if (Array.isArray(row.gallery) && row.gallery.length > 0) {
+                row.gallery.forEach((img: any) => typeof img === "string" && img && galleryImgs.push(img));
+              } else if (typeof row.images === "string") {
+                try {
+                  const parsed = JSON.parse(row.images);
+                  if (Array.isArray(parsed)) parsed.forEach((img) => typeof img === "string" && img && galleryImgs.push(img));
+                } catch {}
+              }
+              if (galleryImgs.length === 0 && (row.image_url || row.image)) {
+                galleryImgs.push(row.image_url || row.image);
+              }
+
               combined.push({
                 id: row.id,
                 name: row.name,
@@ -337,6 +357,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 price: typeof row.price === "number" ? row.price : parseFloat(row.price) || 999,
                 stock_quantity: row.stock_quantity ?? 50,
                 image: row.image_url || row.image || "/products/Peach Blossom Blush.webp",
+                images: galleryImgs,
+                gallery: galleryImgs,
                 description: row.description || row.short_description || "",
                 short_description: row.short_description || "",
                 ingredients: row.ingredients || "",
@@ -358,6 +380,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
         const key = (row.slug || row.name || row.id).toLowerCase();
         if (!seen.has(key)) {
           seen.add(key);
+          const galleryImgs = Array.isArray(row.images) && row.images.length > 0
+            ? row.images
+            : Array.isArray(row.gallery) && row.gallery.length > 0
+            ? row.gallery
+            : [row.image_url || row.image || "/products/Peach Blossom Blush.webp"];
+
           combined.push({
             id: row.id || `local-${Date.now()}`,
             name: row.name,
@@ -366,6 +394,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
             price: typeof row.price === "number" ? row.price : parseFloat(row.price) || 999,
             stock_quantity: row.stock_quantity ?? 50,
             image: row.image_url || row.image || "/products/Peach Blossom Blush.webp",
+            images: galleryImgs,
+            gallery: galleryImgs,
             description: row.description || row.short_description || "",
             short_description: row.short_description || "",
             ingredients: row.ingredients || "",
@@ -543,6 +573,8 @@ export default function AdminView({ onBack }: AdminViewProps) {
     setProductForm((prev) => ({
       ...prev,
       ...preset.data,
+      image: preset.data.image,
+      images: [preset.data.image],
       slug: preset.data.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-"),
     }));
     showNotice(`✓ Loaded ${preset.label}! Form populated with luxury copy and photo.`);
@@ -555,6 +587,14 @@ export default function AdminView({ onBack }: AdminViewProps) {
     // A. Try JSON
     try {
       const parsed = JSON.parse(rawImportText);
+      const parsedImages = Array.isArray(parsed.images) && parsed.images.length > 0
+        ? parsed.images
+        : Array.isArray(parsed.gallery) && parsed.gallery.length > 0
+        ? parsed.gallery
+        : (parsed.image || parsed.image_url)
+        ? [parsed.image || parsed.image_url]
+        : undefined;
+
       setProductForm((prev) => ({
         ...prev,
         name: parsed.name || prev.name,
@@ -563,6 +603,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
         price: parsed.price ? Number(parsed.price) : prev.price,
         stock_quantity: parsed.stock_quantity ?? parsed.stock ?? prev.stock_quantity,
         image: parsed.image || parsed.image_url || prev.image,
+        images: parsedImages || prev.images,
         tag: parsed.tag || prev.tag,
         tone: parsed.tone || prev.tone,
         finish: parsed.finish || prev.finish,
@@ -589,7 +630,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
         else if (key.includes("cat")) extracted.category = normalizeCategory(val);
         else if (key.includes("price")) extracted.price = parseFloat(val.replace(/[^0-9.]/g, "")) || 999;
         else if (key.includes("stock") || key.includes("qty")) extracted.stock_quantity = parseInt(val.replace(/[^0-9]/g, ""), 10) || 40;
-        else if (key.includes("image") || key.includes("photo") || key.includes("url")) extracted.image = val;
+        else if (key.includes("image") || key.includes("photo") || key.includes("url")) {
+          extracted.image = val;
+          const multi = val.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+          if (multi.length > 0) extracted.images = multi;
+        }
         else if (key.includes("ingred")) extracted.ingredients = val;
         else if (key.includes("desc")) extracted.description = val;
         else if (key.includes("note") || key.includes("tagline")) extracted.note = val;
@@ -623,6 +668,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
         price: product.price,
         stock_quantity: product.stock_quantity || 45,
         image: product.image,
+        images: product.images || (product.image ? [product.image] : []),
         tag: product.tag || "New Arrival",
         tone: product.tone || "#a81920",
         finish: product.finish || "Sculpted satin",
@@ -641,22 +687,106 @@ export default function AdminView({ onBack }: AdminViewProps) {
     showNotice(`✓ "${product.name}" JSON copied to clipboard! Ready to paste & tweak.`);
   };
 
-  // Image file upload
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setProductForm((prev) => ({
-          ...prev,
-          image: event.target!.result as string,
-        }));
-        showNotice("✓ Image uploaded and live preview active!");
+  // Multi-image management
+  const handleToggleLibraryAsset = (assetPath: string) => {
+    setProductForm((prev) => {
+      const current = prev.images && prev.images.length > 0 ? [...prev.images] : (prev.image ? [prev.image] : []);
+      let updated: string[];
+      if (current.includes(assetPath)) {
+        if (current.length > 1) {
+          updated = current.filter((p) => p !== assetPath);
+          showNotice("Packshot removed from gallery");
+        } else {
+          showNotice("Product must keep at least one packshot");
+          return prev;
+        }
+      } else {
+        updated = [...current, assetPath];
+        showNotice("✓ Added packshot to gallery!");
       }
-    };
-    reader.readAsDataURL(file);
+      return {
+        ...prev,
+        image: updated[0] || "",
+        images: updated,
+      };
+    });
+  };
+
+  const handleAddImageUrl = (urlToAdd?: string) => {
+    const raw = (urlToAdd || newImageUrl).trim();
+    if (!raw) return;
+    const splitUrls = raw.split(/[\n,]+/).map((u) => u.trim()).filter(Boolean);
+    if (splitUrls.length === 0) return;
+
+    setProductForm((prev) => {
+      const current = prev.images && prev.images.length > 0 ? [...prev.images] : (prev.image ? [prev.image] : []);
+      const combined = Array.from(new Set([...current, ...splitUrls]));
+      return {
+        ...prev,
+        image: combined[0] || "",
+        images: combined,
+      };
+    });
+    setNewImageUrl("");
+    showNotice(`✓ Added ${splitUrls.length} image(s) to product gallery!`);
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setProductForm((prev) => {
+      const current = prev.images && prev.images.length > 0 ? [...prev.images] : [prev.image || ""];
+      if (current.length <= 1) {
+        showNotice("At least one packshot is required.");
+        return prev;
+      }
+      const updated = current.filter((_, idx) => idx !== indexToRemove);
+      return {
+        ...prev,
+        image: updated[0] || "",
+        images: updated,
+      };
+    });
+    showNotice("Photo removed from gallery");
+  };
+
+  const handleSetPrimaryImage = (indexToPrimary: number) => {
+    setProductForm((prev) => {
+      const current = prev.images && prev.images.length > 0 ? [...prev.images] : [prev.image || ""];
+      if (indexToPrimary <= 0 || indexToPrimary >= current.length) return prev;
+      const [chosen] = current.splice(indexToPrimary, 1);
+      current.unshift(chosen);
+      return {
+        ...prev,
+        image: chosen,
+        images: current,
+      };
+    });
+    showNotice("✓ Set as primary cover photo");
+  };
+
+  // Image file upload (supports multiple files)
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          const newPath = event.target.result as string;
+          setProductForm((prev) => {
+            const current = prev.images && prev.images.length > 0 ? [...prev.images] : (prev.image ? [prev.image] : []);
+            const updated = [...current, newPath];
+            return {
+              ...prev,
+              image: updated[0] || newPath,
+              images: updated,
+            };
+          });
+          showNotice("✓ Photo added to product gallery!");
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   // Save new product
@@ -675,6 +805,12 @@ export default function AdminView({ onBack }: AdminViewProps) {
     const numPrice = Number(productForm.price) || 999;
     const normCategory = normalizeCategory(productForm.category);
 
+    const imagesList = (productForm.images && productForm.images.length > 0)
+      ? productForm.images
+      : [productForm.image || "/products/Peach Blossom Blush.webp"];
+    const primaryImage = imagesList[0];
+    const secondaryImage = imagesList[1] || primaryImage;
+
     const payload = {
       id: productId,
       name: productForm.name.trim(),
@@ -682,8 +818,10 @@ export default function AdminView({ onBack }: AdminViewProps) {
       price: numPrice,
       currency: "INR",
       category: normCategory,
-      image_url: productForm.image || "/products/Peach Blossom Blush.webp",
-      campaign_image_url: productForm.image || "/products/Peach Blossom Blush.webp",
+      image_url: primaryImage,
+      campaign_image_url: secondaryImage,
+      images: imagesList,
+      gallery: imagesList,
       description: productForm.description || `Signature ${productForm.name} from She'Aura.`,
       short_description: productForm.note || productForm.description || `Authentic ${productForm.name}.`,
       note: productForm.note || "Botanical formula",
@@ -719,12 +857,13 @@ export default function AdminView({ onBack }: AdminViewProps) {
       ...payload,
       price: `₹${numPrice.toLocaleString("en-IN")}.00`,
       rawPrice: numPrice,
-      image: payload.image_url,
-      still: payload.image_url,
-      campaign: payload.image_url,
-      gallery: [payload.image_url],
+      image: primaryImage,
+      still: primaryImage,
+      campaign: secondaryImage,
+      gallery: imagesList,
+      images: imagesList,
       shades: [
-        { name: "Signature Shade", tone: payload.tone, image: payload.image_url, slug: cleanSlug },
+        { name: "Signature Shade", tone: payload.tone, image: primaryImage, slug: cleanSlug },
       ],
     });
 
@@ -740,7 +879,9 @@ export default function AdminView({ onBack }: AdminViewProps) {
         category: payload.category,
         price: payload.price,
         stock_quantity: payload.stock_quantity,
-        image: payload.image_url,
+        image: primaryImage,
+        images: imagesList,
+        gallery: imagesList,
         description: payload.description,
         short_description: payload.short_description,
         ingredients: payload.ingredients,
@@ -1660,6 +1801,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                                 <div style={{ fontWeight: 600, color: "#191970" }}>{p.name}</div>
                                 <div style={{ fontSize: "10.5px", color: "#765d50", display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
                                   <span>{p.slug}</span>
+                                  {p.images && p.images.length > 1 && (
+                                    <span style={{ fontSize: "9.5px", background: "rgba(25, 25, 112, 0.08)", color: "#191970", padding: "1px 6px", borderRadius: "999px", fontWeight: 600 }}>
+                                      📷 {p.images.length} photos
+                                    </span>
+                                  )}
                                   {p.tone && (
                                     <span
                                       title={`Tone: ${p.tone}`}
@@ -2191,10 +2337,15 @@ export default function AdminView({ onBack }: AdminViewProps) {
 
               {/* Photo & Visual Asset Manager */}
               <div style={{ background: "#faf7f2", border: "1px solid rgba(42, 26, 20, 0.12)", borderRadius: "10px", padding: "16px", marginBottom: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#191970", textTransform: "uppercase", letterSpacing: "0.05em", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <ImageIcon size={14} /> Product Packshot / Photo *
-                  </label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", flexWrap: "wrap", gap: "8px" }}>
+                  <div>
+                    <label style={{ fontSize: "11px", fontWeight: 700, color: "#191970", textTransform: "uppercase", letterSpacing: "0.05em", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      <ImageIcon size={14} /> Multi-Image Photography & Gallery *
+                    </label>
+                    <div style={{ fontSize: "10.5px", color: "#765d50", marginTop: "2px" }}>
+                      Add multiple packshots, shades & textures for storefront PDP gallery carousel.
+                    </div>
+                  </div>
                   <div style={{ display: "inline-flex", gap: "4px", background: "#ffffff", padding: "3px", borderRadius: "999px", border: "1px solid rgba(42, 26, 20, 0.1)" }}>
                     <button
                       type="button"
@@ -2210,7 +2361,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         cursor: "pointer",
                       }}
                     >
-                      Library (1-Click)
+                      Library (Multi-Pick)
                     </button>
                     <button
                       type="button"
@@ -2226,7 +2377,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         cursor: "pointer",
                       }}
                     >
-                      Upload File
+                      Upload Files
                     </button>
                     <button
                       type="button"
@@ -2242,7 +2393,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                         cursor: "pointer",
                       }}
                     >
-                      Direct URL
+                      Direct URLs
                     </button>
                   </div>
                 </div>
@@ -2250,15 +2401,19 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 {imageSourceTab === "library" && (
                   <div>
                     <div style={{ fontSize: "11px", color: "#765d50", marginBottom: "8px" }}>
-                      Select from She’Aura authentic high-res packshots:
+                      Click any packshot below to toggle into/out of product gallery:
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
                       {ASSET_LIBRARY_PICKER.map((asset) => {
-                        const isSelected = productForm.image === asset.path;
+                        const imgs = productForm.images || (productForm.image ? [productForm.image] : []);
+                        const isSelected = imgs.includes(asset.path);
+                        const selIndex = imgs.indexOf(asset.path);
+                        const isPrimary = selIndex === 0;
+
                         return (
                           <div
                             key={asset.path}
-                            onClick={() => setProductForm((prev) => ({ ...prev, image: asset.path }))}
+                            onClick={() => handleToggleLibraryAsset(asset.path)}
                             style={{
                               border: isSelected ? "2px solid #191970" : "1px solid rgba(42, 26, 20, 0.15)",
                               borderRadius: "8px",
@@ -2268,6 +2423,7 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               textAlign: "center",
                               position: "relative",
                               boxShadow: isSelected ? "0 4px 12px rgba(25, 25, 112, 0.15)" : "none",
+                              transition: "all 0.15s ease",
                             }}
                           >
                             <img
@@ -2279,8 +2435,20 @@ export default function AdminView({ onBack }: AdminViewProps) {
                               {asset.label}
                             </div>
                             {isSelected && (
-                              <span style={{ position: "absolute", top: "8px", right: "8px", background: "#191970", color: "#ffffff", width: "16px", height: "16px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px" }}>
-                                ✓
+                              <span
+                                style={{
+                                  position: "absolute",
+                                  top: "6px",
+                                  right: "6px",
+                                  background: isPrimary ? "#c18847" : "#191970",
+                                  color: "#ffffff",
+                                  padding: "2px 6px",
+                                  borderRadius: "999px",
+                                  fontSize: "9px",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {isPrimary ? "★ Cover" : `#${selIndex + 1}`}
                               </span>
                             )}
                           </div>
@@ -2293,10 +2461,11 @@ export default function AdminView({ onBack }: AdminViewProps) {
                 {imageSourceTab === "upload" && (
                   <div style={{ border: "2px dashed rgba(42, 26, 20, 0.2)", borderRadius: "8px", padding: "20px", textAlign: "center", background: "#ffffff" }}>
                     <Upload size={24} style={{ color: "#c18847", margin: "0 auto 8px" }} />
-                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#191970" }}>Choose or drag photo here</div>
-                    <div style={{ fontSize: "10.5px", color: "#765d50", marginTop: "4px" }}>PNG, JPG, WebP supported</div>
+                    <div style={{ fontSize: "12px", fontWeight: 600, color: "#191970" }}>Choose or drag multiple photos here</div>
+                    <div style={{ fontSize: "10.5px", color: "#765d50", marginTop: "4px" }}>Select one or multiple PNG, JPG, WebP files</div>
                     <input
                       type="file"
+                      multiple
                       accept="image/*"
                       onChange={handleImageFileUpload}
                       style={{ marginTop: "12px", fontSize: "11px" }}
@@ -2306,41 +2475,142 @@ export default function AdminView({ onBack }: AdminViewProps) {
 
                 {imageSourceTab === "url" && (
                   <div>
-                    <input
-                      type="text"
-                      name="image"
-                      placeholder="e.g. /products/Scarlet Rose Lipstick.webp or https://..."
-                      value={productForm.image}
-                      onChange={(e) => setProductForm((prev) => ({ ...prev, image: e.target.value }))}
-                      style={{
-                        width: "100%",
-                        padding: "9px 12px",
-                        fontSize: "12px",
-                        borderRadius: "6px",
-                        border: "1px solid rgba(42, 26, 20, 0.2)",
-                        background: "#ffffff",
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* Live Preview Box */}
-                {productForm.image && (
-                  <div style={{ display: "flex", alignItems: "center", gap: "14px", marginTop: "14px", paddingTop: "12px", borderTop: "1px solid rgba(42, 26, 20, 0.1)" }}>
-                    <img
-                      src={productForm.image}
-                      alt="Preview"
-                      style={{ width: "54px", height: "54px", objectFit: "cover", borderRadius: "8px", border: "1px solid rgba(42, 26, 20, 0.15)", background: "#ffffff" }}
-                    />
-                    <div>
-                      <div style={{ fontSize: "10.5px", color: "#1e6b37", fontWeight: 600 }}>✓ Packshot verified</div>
-                      <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#191970" }}>
-                        {productForm.name || "Untitled Creation"} · ₹{Number(productForm.price || 0).toLocaleString("en-IN")}
-                      </div>
-                      <div style={{ fontSize: "10.5px", color: "#765d50" }}>{productForm.category}</div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        type="text"
+                        name="image"
+                        placeholder="Paste image URL (or multiple comma-separated URLs)..."
+                        value={newImageUrl}
+                        onChange={(e) => setNewImageUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddImageUrl();
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: "9px 12px",
+                          fontSize: "12px",
+                          borderRadius: "6px",
+                          border: "1px solid rgba(42, 26, 20, 0.2)",
+                          background: "#ffffff",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddImageUrl()}
+                        style={{
+                          background: "#191970",
+                          color: "#ffffff",
+                          border: "none",
+                          padding: "9px 16px",
+                          borderRadius: "6px",
+                          fontSize: "11.5px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        + Add Photo
+                      </button>
                     </div>
                   </div>
                 )}
+
+                {/* Interactive Multi-Photo Gallery Preview Strip */}
+                <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px solid rgba(42, 26, 20, 0.1)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#191970", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Product Gallery ({productForm.images?.length || 0} photo{(productForm.images?.length || 0) === 1 ? "" : "s"})
+                    </span>
+                    <span style={{ fontSize: "10px", color: "#1e6b37", fontWeight: 600 }}>
+                      ✓ Storefront PDP Thumbnail Strip Ready
+                    </span>
+                  </div>
+
+                  {(!productForm.images || productForm.images.length === 0) ? (
+                    <div style={{ padding: "16px", textAlign: "center", fontSize: "11.5px", color: "#765d50", background: "#ffffff", borderRadius: "8px", border: "1px dashed rgba(42, 26, 20, 0.2)" }}>
+                      No photos in gallery yet. Select from the library above or upload files.
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "10px" }}>
+                      {productForm.images.map((imgUrl, idx) => {
+                        const isPrimary = idx === 0;
+                        return (
+                          <div
+                            key={`${imgUrl}-${idx}`}
+                            style={{
+                              position: "relative",
+                              borderRadius: "8px",
+                              border: isPrimary ? "2px solid #c18847" : "1px solid rgba(42, 26, 20, 0.15)",
+                              background: "#ffffff",
+                              padding: "6px",
+                              boxShadow: isPrimary ? "0 4px 12px rgba(193, 136, 71, 0.2)" : "0 2px 6px rgba(0,0,0,0.03)",
+                            }}
+                          >
+                            <img
+                              src={imgUrl}
+                              alt={`Gallery photo ${idx + 1}`}
+                              style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", background: "#faf5ee" }}
+                            />
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "6px" }}>
+                              <span
+                                style={{
+                                  fontSize: "9px",
+                                  fontWeight: 700,
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  background: isPrimary ? "#191970" : "rgba(42, 26, 20, 0.08)",
+                                  color: isPrimary ? "#ffffff" : "#765d50",
+                                }}
+                              >
+                                {isPrimary ? "★ Primary" : `#${idx + 1}`}
+                              </span>
+                              <div style={{ display: "inline-flex", gap: "4px" }}>
+                                {!isPrimary && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetPrimaryImage(idx)}
+                                    title="Make Primary Cover Photo"
+                                    style={{
+                                      background: "rgba(193, 136, 71, 0.12)",
+                                      color: "#965b16",
+                                      border: "none",
+                                      borderRadius: "4px",
+                                      padding: "2px 5px",
+                                      fontSize: "9px",
+                                      fontWeight: 600,
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Cover
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveImage(idx)}
+                                  title="Remove photo"
+                                  style={{
+                                    background: "rgba(184, 40, 40, 0.1)",
+                                    color: "#b82828",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    padding: "2px 5px",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <X size={11} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Actions Footer */}

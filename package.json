@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "format": "oxfmt",
     "test": "node scripts/test-e2e-suite.cjs",
+    "test:database": "node scripts/test-database-and-gallery.cjs",
     "test:security": "node scripts/test-security-suite.cjs",
     "test:visual": "playwright test"
   },

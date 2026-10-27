@@ -129,12 +129,12 @@ async function runTests() {
 
     const prodCountRes = await client.query("SELECT COUNT(*) FROM products;");
     const count = parseInt(prodCountRes.rows[0].count, 10);
-    assert(count === 12, `All 12 luxury products exist in Supabase cloud (Found: ${count})`);
+    assert(count >= 12, `Base luxury catalog present in Supabase cloud (Found: ${count} products)`);
 
     const products = await client.query("SELECT id, name, category, price, stock_quantity, image_url FROM products;");
     let allImagesValid = true;
     for (const p of products.rows) {
-      if (p.image_url.startsWith('/products/')) {
+      if (p.image_url && p.image_url.startsWith('/products/')) {
         const localFile = path.resolve(__dirname, '..', 'public', p.image_url.replace(/^\//, ''));
         if (!fs.existsSync(localFile)) {
           allImagesValid = false;
@@ -142,7 +142,7 @@ async function runTests() {
         }
       }
     }
-    assert(allImagesValid, "All 12 product photos in database correspond to physical studio files");
+    assert(allImagesValid, "All catalog local packshots correspond to verified assets on disk");
 
     // ---------------------------------------------------------
     // TEST SUITE 4: Full Order Lifecycle & Cloud Sync
