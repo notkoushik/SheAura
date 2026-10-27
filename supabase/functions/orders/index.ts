@@ -71,10 +71,25 @@ serve(async (req: Request) => {
       };
     });
 
-    // 2. Validate promotional code
+    // 2. Validate promotional code server-side
     let discount = 0;
-    if (promoCode && promoCode.toUpperCase() === "AURA10" && subtotal >= 1000) {
-      discount = Math.round((subtotal * 10) / 100);
+    if (promoCode) {
+      const code = String(promoCode).toUpperCase().trim();
+      if ((code === "SHEAURA10" || code === "AURA10") && subtotal > 0) {
+        discount = Math.round((subtotal * 10) / 100);
+      } else if (code === "FIRSTGLOW" && subtotal >= 1500) {
+        discount = Math.round((subtotal * 15) / 100);
+      } else if (code === "SHEAURA20" && subtotal >= 2000) {
+        discount = Math.round((subtotal * 20) / 100);
+      } else if (code === "HAUTE500" && subtotal >= 1500) {
+        discount = Math.min(subtotal, 500);
+      } else if (code === "WELCOME500" && subtotal >= 2500) {
+        discount = Math.min(subtotal, 500);
+      } else if (code === "VIPFIRST" && subtotal >= 999) {
+        discount = Math.min(subtotal, 300);
+      } else if (code === "SAVE100" && subtotal >= 499) {
+        discount = Math.min(subtotal, 100);
+      }
     }
 
     // 3. Shipping fee & tax calculation

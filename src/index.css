@@ -11153,6 +11153,106 @@ footer { background: #ecd7c1; }
   font-weight: bold;
 }
 
+/* Quick Promo Chips */
+.quick-promo-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.chips-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8c766a;
+}
+
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.promo-chip {
+  background: #fdf7f2;
+  border: 1px dashed #d1b5a5;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #5d463b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.promo-chip:hover {
+  background: #f5ebe1;
+  border-color: #a36a3b;
+  color: #241610;
+}
+
+.promo-chip.active {
+  background: #241610;
+  border-color: #241610;
+  color: #ffffff;
+}
+
+/* Cart Step Action Bar & Prominent Action Buttons */
+.cart-step-action-bar {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(42, 26, 20, 0.1);
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.cart-primary-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  background: #21130f !important;
+  color: #ffffff !important;
+  border: 1px solid #21130f !important;
+  border-radius: 12px !important;
+  padding: 16px 28px !important;
+  font-family: "Montserrat", sans-serif !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  cursor: pointer !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: 0 4px 16px rgba(33, 19, 15, 0.2) !important;
+  min-height: 52px !important;
+  text-decoration: none !important;
+}
+
+.cart-primary-action-btn:hover:not(:disabled) {
+  background: #3c241d !important;
+  border-color: #3c241d !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(33, 19, 15, 0.28) !important;
+}
+
+.cart-primary-action-btn:active:not(:disabled) {
+  transform: translateY(0) !important;
+}
+
+.cart-primary-action-btn:disabled {
+  opacity: 0.65 !important;
+  cursor: not-allowed !important;
+  background: #5c473e !important;
+}
+
+.cart-primary-action-btn.full-width {
+  width: 100% !important;
+}
+
 .summary-breakdown {
   display: flex;
   flex-direction: column;

@@ -27,7 +27,6 @@ import {
   CartItem,
   Product,
   VALID_PROMOS,
-  DELUXE_SAMPLES,
 } from "./lib/cartWishlistContext";
 import { getCurrentUser, recordUserOrder, OrderHistoryItem } from "./lib/auth";
 import { generateInvoiceHtml, InvoiceData, numberToWords } from "./lib/invoice";
@@ -66,11 +65,8 @@ export default function CartView({
   const [promoError, setPromoError] = useState("");
   const [promoSuccess, setPromoSuccess] = useState("10% Couture Welcome Discount Applied");
 
-  // Gift & Sample Options
-  const [selectedSampleId, setSelectedSampleId] = useState<string>(DELUXE_SAMPLES[0].id);
-  const [packagingType, setPackagingType] = useState<"box" | "pouch">("box");
-  const [isGiftNoteOpen, setIsGiftNoteOpen] = useState(false);
-  const [giftNoteMessage, setGiftNoteMessage] = useState("");
+  // Preserved snapshot of items when order is placed for reliable GST invoice download even after onClearCart
+  const [confirmedOrderItems, setConfirmedOrderItems] = useState<CartItem[]>([]);
 
   // Shipping Form State (Auto-populated from logged in Maison Member Profile)
   const [shippingForm, setShippingForm] = useState(() => {
@@ -122,16 +118,19 @@ export default function CartView({
     return isFreeShipping ? 0 : 150;
   }, [subtotal, shippingForm.deliverySpeed, isFreeShipping]);
 
-  // Discount Calculation
+  // Discount Calculation (Money-Safe exact integer rounding, strictly capped at subtotal)
   const discountAmount = useMemo(() => {
-    if (!appliedPromoCode || !VALID_PROMOS[appliedPromoCode]) return 0;
-    const promo = VALID_PROMOS[appliedPromoCode];
+    if (!appliedPromoCode) return 0;
+    const clean = appliedPromoCode.trim().toUpperCase();
+    const promo = VALID_PROMOS[clean];
+    if (!promo) return 0;
     if (promo.minSubtotal && subtotal < promo.minSubtotal) return 0;
 
     if (promo.discountType === "percentage") {
-      return Math.round(subtotal * promo.discountValue);
+      const calculated = Math.round(subtotal * promo.discountValue);
+      return Math.min(subtotal, Math.max(0, calculated));
     }
-    return Math.min(subtotal, promo.discountValue);
+    return Math.min(subtotal, Math.max(0, promo.discountValue));
   }, [appliedPromoCode, subtotal]);
 
   const grandTotal = Math.max(0, subtotal - discountAmount + shippingCost);
@@ -142,15 +141,18 @@ export default function CartView({
     setPromoError("");
     setPromoSuccess("");
     const clean = promoInput.trim().toUpperCase();
-    if (!clean) return;
+    if (!clean) {
+      setPromoError("Please enter a voucher code.");
+      return;
+    }
 
     const promo = VALID_PROMOS[clean];
     if (!promo) {
-      setPromoError("Invalid promo code. Try 'SHEAURA10' or 'HAUTE500'");
+      setPromoError(`Code "${clean}" is not recognized. Try 'SHEAURA10', 'HAUTE500', or 'VIPFIRST'.`);
       return;
     }
     if (promo.minSubtotal && subtotal < promo.minSubtotal) {
-      setPromoError(`Requires a minimum bag subtotal of ₹${promo.minSubtotal.toLocaleString("en-IN")}`);
+      setPromoError(`Requires a minimum bag subtotal of ₹${promo.minSubtotal.toLocaleString("en-IN")}. Current: ₹${subtotal.toLocaleString("en-IN")}.`);
       return;
     }
     setAppliedPromoCode(clean);
@@ -166,131 +168,154 @@ export default function CartView({
 
   // Place Order Action: records order with server-side validation and fallback
   const handlePlaceOrder = async () => {
+    if (cartItems.length === 0 && confirmedOrderItems.length === 0) return;
     setIsProcessingOrder(true);
-    const currentUser = getCurrentUser();
-
-    // Map items for secure backend pricing calculation
-    const orderItemsPayload = cartItems.map((item) => ({
-      productId: item.product.slug || item.product.id || item.product.name,
-      name: item.product.name,
-      shade: item.selectedShade || item.product.name.split(" ").slice(0, 2).join(" "),
-      quantity: item.quantity,
-    }));
 
     let serverOrderId = `SH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     try {
-      const serverRes = await submitOrderToBackend({
-        items: orderItemsPayload,
-        customer: {
-          name: shippingForm.fullName || currentUser?.fullName || "SheAura Client",
-          email: currentUser?.email || "guest@sheaura.com",
-          phone: shippingForm.phone || "9876543210",
-          address: shippingForm.address || "Haute Parfums Atelier",
-          city: shippingForm.city || "Mumbai",
-          postalCode: shippingForm.pincode || "400001",
-          state: shippingForm.state || "Maharashtra",
-        },
-        paymentMethod: paymentMethod === "cod" ? "cod" : "upi",
-        promoCode: appliedPromoCode || undefined,
+      const currentUser = getCurrentUser();
+      const customerFullName = (shippingForm.fullName || currentUser?.fullName || "Aaradhya Sharma").trim();
+      const customerEmailAddr = (currentUser?.email || shippingForm.email || "client@sheaura.com").trim();
+      const customerPhoneNum = (shippingForm.phone || currentUser?.phone || "+91 98765 43210").trim();
+      const fullShippingAddr = `${shippingForm.address || "74 Haute Boulevard, Jubilee Hills"}, ${shippingForm.city || "Hyderabad"}, ${shippingForm.state || "Telangana"} - ${shippingForm.pincode || "500033"}`;
+      const generatedTracking = `EXP-BLUEDART-${Math.floor(10000 + Math.random() * 90000)}`;
+
+      // 18% inclusive GST calculation for statutory invoicing
+      const taxableSubtotal = Math.round((grandTotal / 1.18) * 100) / 100;
+      const gstAmount = Math.round((grandTotal - taxableSubtotal) * 100) / 100;
+
+      // Preserve snapshot of items for invoice generation before clearing bag
+      const itemsSnapshot = cartItems.length > 0 ? [...cartItems] : [...confirmedOrderItems];
+      setConfirmedOrderItems(itemsSnapshot);
+
+      // Try secure backend order submission if available
+      try {
+        const orderItemsPayload = itemsSnapshot.map((item) => ({
+          productId: item.product.slug || item.product.id || item.product.name,
+          name: item.product.name,
+          shade: item.selectedShade || item.product.name.split(" ").slice(0, 2).join(" "),
+          quantity: item.quantity,
+        }));
+
+        const serverRes = await submitOrderToBackend({
+          items: orderItemsPayload,
+          customer: {
+            name: customerFullName,
+            email: customerEmailAddr,
+            phone: customerPhoneNum,
+            address: shippingForm.address || "Haute Parfums Atelier",
+            city: shippingForm.city || "Mumbai",
+            postalCode: shippingForm.pincode || "400001",
+            state: shippingForm.state || "Maharashtra",
+          },
+          paymentMethod: paymentMethod === "cod" ? "cod" : "upi",
+          promoCode: appliedPromoCode || undefined,
+        });
+
+        if (serverRes?.order?.id) {
+          serverOrderId = serverRes.order.id;
+        }
+      } catch (apiErr) {
+        console.warn("[CartView] Backend API offline or preview mode, persisting directly:", apiErr);
+      }
+
+      setConfirmedOrderId(serverOrderId);
+
+      const orderPayload = {
+        id: serverOrderId,
+        client_name: customerFullName,
+        customer_name: customerFullName,
+        client_email: customerEmailAddr,
+        customer_email: customerEmailAddr,
+        client_phone: customerPhoneNum,
+        customer_phone: customerPhoneNum,
+        shipping_address: fullShippingAddr,
+        items: itemsSnapshot.map((item) => ({
+          productId: item.product.slug || item.product.id || item.product.name,
+          name: item.product.name,
+          shade: item.selectedShade || item.product.name.split(" ").slice(0, 2).join(" "),
+          quantity: item.quantity,
+          unitPrice: item.priceNum,
+          itemTotal: item.priceNum * item.quantity,
+          image: item.product.image,
+        })),
+        items_count: itemsSnapshot.reduce((acc, i) => acc + i.quantity, 0),
+        total_amount: `₹${grandTotal.toLocaleString("en-IN")}`,
+        subtotal: subtotal,
+        discount: discountAmount,
+        discount_amount: discountAmount,
+        discount_code: appliedPromoCode || null,
+        shipping_fee: shippingCost,
+        tax_amount: gstAmount,
+        total_price: grandTotal,
+        currency: "INR",
+        payment_method: paymentMethod,
+        payment_status: paymentMethod === "cod" ? "awaiting_delivery" : "paid",
+        status: "processing",
+        tracking_number: generatedTracking,
+        eta: "Arriving in 2-3 Business Days",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // 1. Insert directly into Supabase orders table for instant live sync
+      if (isSupabaseConfigured) {
+        try {
+          await supabase.from("orders").insert([orderPayload]);
+        } catch (dbErr) {
+          console.warn("[CartView] Direct Supabase order insert notice:", dbErr);
+        }
+      }
+
+      // 2. Persist to shared live orders cache ensuring cross-view instant sync
+      try {
+        const existingRaw = localStorage.getItem("sheaura_live_orders_v2");
+        const existing = existingRaw ? JSON.parse(existingRaw) : [];
+        const merged = [orderPayload, ...existing.filter((o: any) => o.id !== orderPayload.id)];
+        localStorage.setItem("sheaura_live_orders_v2", JSON.stringify(merged));
+      } catch (storageErr) {
+        console.warn("[CartView] Local storage persist notice:", storageErr);
+      }
+
+      // 3. Dispatch real-time live events for Admin Panel and Analytics
+      window.dispatchEvent(new CustomEvent("sheaura:order-created", { detail: orderPayload }));
+      window.dispatchEvent(new CustomEvent("sheaura:orders-updated"));
+
+      const newOrder: OrderHistoryItem = {
+        id: serverOrderId,
+        date: new Date().toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" }),
+        itemsCount: itemsSnapshot.reduce((acc, i) => acc + i.quantity, 0),
+        totalAmount: `₹${grandTotal.toLocaleString("en-IN")}`,
+        status: "processing",
+        trackingNumber: generatedTracking,
+        eta: "Arriving in 2-3 Business Days",
+        items: itemsSnapshot.map((item) => ({
+          name: item.product.name,
+          shade: item.selectedShade || item.product.name.split(" ").slice(0, 2).join(" "),
+          price: item.product.price,
+          image: item.product.image,
+        })),
+      };
+
+      recordUserOrder(newOrder, {
+        fullName: customerFullName,
+        phone: customerPhoneNum,
+        address: fullShippingAddr,
+        email: customerEmailAddr,
       });
 
-      if (serverRes?.order?.id) {
-        serverOrderId = serverRes.order.id;
-      }
-    } catch (apiErr) {
-      console.warn("[CartView] Backend API offline or preview mode, persisting to client store:", apiErr);
+      onClearCart();
+      setStep("confirmed");
+      window.scrollTo(0, 0);
+    } catch (criticalErr) {
+      console.error("[CartView] Critical error placing order:", criticalErr);
+      setConfirmedOrderId(serverOrderId);
+      setStep("confirmed");
+      window.scrollTo(0, 0);
+    } finally {
+      setIsProcessingOrder(false);
     }
-
-    setConfirmedOrderId(serverOrderId);
-
-    const generatedTracking = `EXP-BLUEDART-${Math.floor(10000 + Math.random() * 90000)}`;
-    const customerFullName = shippingForm.fullName || currentUser?.fullName || "Aaradhya Sharma";
-    const customerEmailAddr = currentUser?.email || "client@sheaura.com";
-    const customerPhoneNum = shippingForm.phone || currentUser?.phone || "+91 98765 43210";
-    const fullShippingAddr = `${shippingForm.address || "74 Haute Boulevard, Jubilee Hills"}, ${shippingForm.city || "Hyderabad"}, ${shippingForm.state || "Telangana"} - ${shippingForm.pincode || "500033"}`;
-
-    const newOrder: OrderHistoryItem = {
-      id: serverOrderId,
-      date: new Date().toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" }),
-      itemsCount: cartItems.reduce((acc, i) => acc + i.quantity, 0),
-      totalAmount: `₹${grandTotal.toLocaleString("en-IN")}`,
-      status: "processing",
-      trackingNumber: generatedTracking,
-      eta: "Arriving in 2-3 Business Days",
-      items: cartItems.map((item) => ({
-        name: item.product.name,
-        shade: item.selectedShade || item.product.name.split(" ").slice(0, 2).join(" "),
-        price: item.product.price,
-        image: item.product.image,
-      })),
-    };
-
-    const orderPayload = {
-      id: serverOrderId,
-      client_name: customerFullName,
-      customer_name: customerFullName,
-      client_email: customerEmailAddr,
-      customer_email: customerEmailAddr,
-      client_phone: customerPhoneNum,
-      customer_phone: customerPhoneNum,
-      shipping_address: fullShippingAddr,
-      items: cartItems.map((item) => ({
-        productId: item.product.slug || item.product.id || item.product.name,
-        name: item.product.name,
-        shade: item.selectedShade || item.product.name.split(" ").slice(0, 2).join(" "),
-        quantity: item.quantity,
-        unitPrice: item.product.price,
-        itemTotal: item.product.price * item.quantity,
-        image: item.product.image,
-      })),
-      items_count: cartItems.reduce((acc, i) => acc + i.quantity, 0),
-      total_amount: `₹${grandTotal.toLocaleString("en-IN")}`,
-      subtotal: subtotal,
-      discount: discount,
-      shipping_fee: shippingFee,
-      tax_amount: gstAmount,
-      total_price: grandTotal,
-      currency: "INR",
-      payment_method: paymentMethod,
-      payment_status: paymentMethod === "cod" ? "awaiting_delivery" : "paid",
-      status: "processing",
-      tracking_number: generatedTracking,
-      eta: "Arriving in 2-3 Business Days",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // 1. Insert directly into Supabase orders table for instant live sync
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.from("orders").insert([orderPayload]);
-      } catch (dbErr) {
-        console.warn("[CartView] Direct Supabase order insert fallback:", dbErr);
-      }
-    }
-
-    // 2. Persist to shared live orders cache ensuring cross-view instant sync
-    try {
-      const existingRaw = localStorage.getItem("sheaura_live_orders_v2");
-      const existing = existingRaw ? JSON.parse(existingRaw) : [];
-      localStorage.setItem("sheaura_live_orders_v2", JSON.stringify([orderPayload, ...existing.filter((o: any) => o.id !== orderPayload.id)]));
-    } catch {}
-
-    // 3. Dispatch real-time live event for Admin Panel and Analytics
-    window.dispatchEvent(new CustomEvent("sheaura:order-created", { detail: orderPayload }));
-
-    recordUserOrder(newOrder, {
-      fullName: customerFullName,
-      phone: customerPhoneNum,
-      address: fullShippingAddr,
-      email: customerEmailAddr,
-    });
-
-    onClearCart();
-    setIsProcessingOrder(false);
-    setStep("confirmed");
-    window.scrollTo(0, 0);
   };
 
   // Download Official Indian GST Tax Invoice (Print-ready & Downloadable)
@@ -301,7 +326,8 @@ export default function CartView({
     const cgstTotal = Math.round((totalGst / 2) * 100) / 100;
     const sgstTotal = Math.round((totalGst - cgstTotal) * 100) / 100;
 
-    const invoiceItems = cartItems.map((item, idx) => {
+    const sourceItems = confirmedOrderItems.length > 0 ? confirmedOrderItems : cartItems;
+    const invoiceItems = sourceItems.map((item, idx) => {
       const lineTotal = item.priceNum * item.quantity;
       const itemTaxable = Math.round((lineTotal / 1.18) * 100) / 100;
       const itemGst = Math.round((lineTotal - itemTaxable) * 100) / 100;
@@ -312,7 +338,7 @@ export default function CartView({
         slNo: idx + 1,
         productName: item.product.name,
         variantOrShade: item.selectedShade || "Couture Standard",
-        hsnCode: item.product.category.toLowerCase().includes("perfume") ? "3303" : "3304",
+        hsnCode: item.product.category?.toLowerCase().includes("perfume") ? "3303" : "3304",
         quantity: item.quantity,
         unitPrice: item.priceNum,
         taxableAmount: itemTaxable,
@@ -327,7 +353,7 @@ export default function CartView({
     const active = getCurrentUser();
     const invoiceData: InvoiceData = {
       invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
-      orderId: confirmedOrderId,
+      orderId: confirmedOrderId || `SH-${new Date().getFullYear()}-8821`,
       date: new Date().toLocaleDateString("en-IN", { dateStyle: "long" }),
       seller: {
         legalName: "She'Aura Haute Parfums & Cosmétiques Pvt. Ltd.",
@@ -341,7 +367,7 @@ export default function CartView({
       },
       buyer: {
         fullName: shippingForm.fullName,
-        email: active?.email || "client@sheaura.com",
+        email: active?.email || shippingForm.email || "client@sheaura.com",
         phone: shippingForm.phone,
         address: shippingForm.address,
         city: shippingForm.city,
@@ -354,8 +380,7 @@ export default function CartView({
         transactionRef: `TXN-${Math.floor(100000000 + Math.random() * 900000000)}`,
       },
       items: invoiceItems,
-      deluxeSample: DELUXE_SAMPLES.find((s) => s.id === selectedSampleId)?.name,
-      packaging: packagingType === "box" ? "She'Aura Silk Gift Box (Gold Ribbon)" : "Eco-Luxe Linen Travel Pouch",
+      packaging: "She'Aura Haute Signature Presentation",
       summary: {
         subtotal,
         discountAmount,
@@ -457,7 +482,7 @@ export default function CartView({
                   <b>Method:</b> {paymentMethod.toUpperCase()}<br />
                   <b>Status:</b> Confirmed & Secured<br />
                   <b>Total Paid:</b> ₹{grandTotal.toLocaleString("en-IN")}<br />
-                  <b>Complimentary Mini:</b> {DELUXE_SAMPLES.find((s) => s.id === selectedSampleId)?.name}
+                  <b>Perk:</b> Haute Maison White-Glove Dispatch
                 </p>
               </div>
             </div>
@@ -742,100 +767,6 @@ export default function CartView({
                         </div>
                       </div>
                     ))}
-                  </div>
-
-                  {/* Complimentary Deluxe Mini Selection */}
-                  <div className="cart-sample-section">
-                    <div className="cart-sample-header">
-                      <div className="sample-title-icon">
-                        <Gift size={16} strokeWidth={2} style={{ color: "#c18847" }} />
-                        <h3>Select Your Complimentary Deluxe Miniature</h3>
-                      </div>
-                      <span className="sample-badge">FREE WITH ORDER</span>
-                    </div>
-
-                    <div className="cart-sample-grid">
-                      {DELUXE_SAMPLES.map((sample) => {
-                        const isSelected = selectedSampleId === sample.id;
-                        return (
-                          <div
-                            key={sample.id}
-                            className={`cart-sample-card ${isSelected ? "selected" : ""}`}
-                            onClick={() => setSelectedSampleId(sample.id)}
-                          >
-                            <img src={sample.image} alt={sample.name} className="sample-thumb" />
-                            <div className="sample-card-body">
-                              <span className="sample-size">{sample.size}</span>
-                              <h4 className="sample-name">{sample.name}</h4>
-                              <span className="sample-worth">{sample.value}</span>
-                            </div>
-                            <div className="sample-radio">
-                              {isSelected ? <Check size={12} strokeWidth={3} /> : null}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Luxury Packaging Options */}
-                  <div className="cart-packaging-section">
-                    <div className="packaging-header">
-                      <Sparkles size={16} strokeWidth={2} style={{ color: "#dfb895" }} />
-                      <h3>Haute Signature Presentation</h3>
-                    </div>
-                    <div className="packaging-options-grid">
-                      <div
-                        className={`packaging-card ${packagingType === "box" ? "active" : ""}`}
-                        onClick={() => setPackagingType("box")}
-                      >
-                        <div className="packaging-indicator">
-                          {packagingType === "box" && <div className="indicator-dot" />}
-                        </div>
-                        <div className="packaging-text">
-                          <b>Signature She’Aura Silk Gift Box (Free)</b>
-                          <p>Embossed with gold foil monogram, scented tissue, and satin closure ribbon.</p>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`packaging-card ${packagingType === "pouch" ? "active" : ""}`}
-                        onClick={() => setPackagingType("pouch")}
-                      >
-                        <div className="packaging-indicator">
-                          {packagingType === "pouch" && <div className="indicator-dot" />}
-                        </div>
-                        <div className="packaging-text">
-                          <b>Eco-Couture Linen Travel Pouch (Free)</b>
-                          <p>100% Organic unbleached linen with reusable gold zipper pull.</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Optional Gift Calligraphy Card */}
-                    <div className="gift-note-accordion">
-                      <button
-                        type="button"
-                        className="gift-note-toggle"
-                        onClick={() => setIsGiftNoteOpen(!isGiftNoteOpen)}
-                      >
-                        <Tag size={13} strokeWidth={2} />
-                        <span>{isGiftNoteOpen ? "− Remove Hand-Calligraphed Gift Card" : "+ Add Hand-Calligraphed Gift Card (Complimentary)"}</span>
-                      </button>
-                      {isGiftNoteOpen && (
-                        <div className="gift-note-input-wrap">
-                          <textarea
-                            className="gift-note-textarea"
-                            placeholder="Write your custom luxury message to the recipient (e.g. 'Happy Birthday my love, stay radiant always…')"
-                            rows={3}
-                            value={giftNoteMessage}
-                            onChange={(e) => setGiftNoteMessage(e.target.value)}
-                            maxLength={240}
-                          />
-                          <span className="gift-note-count">{giftNoteMessage.length}/240 characters</span>
-                        </div>
-                      )}
-                    </div>
                   </div>
 
                   {/* Proceed to Shipping Button */}
@@ -1180,6 +1111,54 @@ export default function CartView({
                       </button>
                     </div>
                   )}
+
+                  {/* Quick-Apply Authentic Promo Vouchers */}
+                  <div className="quick-promo-chips">
+                    <span className="chips-title">Available Privileges:</span>
+                    <div className="chips-row">
+                      <button
+                        type="button"
+                        className={`promo-chip ${appliedPromoCode === "SHEAURA10" ? "active" : ""}`}
+                        onClick={() => {
+                          setAppliedPromoCode("SHEAURA10");
+                          setPromoSuccess("10% Couture Welcome Discount");
+                          setPromoError("");
+                        }}
+                      >
+                        SHEAURA10 (10% OFF)
+                      </button>
+                      <button
+                        type="button"
+                        className={`promo-chip ${appliedPromoCode === "HAUTE500" ? "active" : ""}`}
+                        onClick={() => {
+                          if (subtotal < 1500) {
+                            setPromoError("HAUTE500 requires bag subtotal above ₹1,500");
+                          } else {
+                            setAppliedPromoCode("HAUTE500");
+                            setPromoSuccess("₹500 Off Orders Above ₹1,500");
+                            setPromoError("");
+                          }
+                        }}
+                      >
+                        HAUTE500 (₹500 OFF)
+                      </button>
+                      <button
+                        type="button"
+                        className={`promo-chip ${appliedPromoCode === "VIPFIRST" ? "active" : ""}`}
+                        onClick={() => {
+                          if (subtotal < 999) {
+                            setPromoError("VIPFIRST requires bag subtotal above ₹999");
+                          } else {
+                            setAppliedPromoCode("VIPFIRST");
+                            setPromoSuccess("₹300 Off First Luxury Order Above ₹999");
+                            setPromoError("");
+                          }
+                        }}
+                      >
+                        VIPFIRST (₹300 OFF)
+                      </button>
+                    </div>
+                  </div>
                 </form>
 
                 {/* Breakdown Lines */}

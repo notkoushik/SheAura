@@ -57,9 +57,14 @@ export const OFFICIAL_PRICES: Record<string, { name: string; price: number; cate
 
 // Valid promo codes verified server-side
 const PROMO_CODES: Record<string, { type: "percent" | "fixed"; value: number; minOrder: number }> = {
-  "AURA10": { type: "percent", value: 10, minOrder: 1000 },
+  "SHEAURA10": { type: "percent", value: 10, minOrder: 0 },
+  "AURA10": { type: "percent", value: 10, minOrder: 0 },
+  "HAUTE500": { type: "fixed", value: 500, minOrder: 1500 },
+  "VIPFIRST": { type: "fixed", value: 300, minOrder: 999 },
   "FIRSTGLOW": { type: "percent", value: 15, minOrder: 1500 },
   "WELCOME500": { type: "fixed", value: 500, minOrder: 2500 },
+  "SHEAURA20": { type: "percent", value: 20, minOrder: 2000 },
+  "SAVE100": { type: "fixed", value: 100, minOrder: 499 },
 };
 
 export function calculateOrderTotals(items: CartItemInput[], promoCode?: string): CalculatedOrder {

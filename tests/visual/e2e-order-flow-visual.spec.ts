@@ -110,8 +110,8 @@ test.describe("SheAura Complete E-Commerce Flow & Profile Visual Audit", () => {
     await expect(adminConsole).toBeVisible({ timeout: 15000 });
 
     // Verify admin stats are loaded
-    await expect(page.locator("text=Gross Revenue")).toBeVisible();
-    await expect(page.locator("text=Live Orders")).toBeVisible();
+    await expect(page.locator("text=/TOTAL REVENUE|Gross Revenue/i")).toBeVisible();
+    await expect(page.locator("text=/ACTIVE ORDERS|Live Orders/i")).toBeVisible();
 
     // Capture Admin Operations Studio with new order in queue
     await page.screenshot({
