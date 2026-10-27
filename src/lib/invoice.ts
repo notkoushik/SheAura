@@ -4,6 +4,8 @@
  * Follows statutory Indian GST guidelines (HSN 3304 / 3303, CGST 9% + SGST 9% = 18%)
  */
 
+import { getTaxSettings, calculateDynamicTax, TaxSettings } from "./taxSettings";
+
 export interface InvoiceItem {
   slNo: number;
   productName: string;
@@ -57,6 +59,9 @@ export interface InvoiceData {
     taxableSubtotal: number;
     cgstTotal: number;
     sgstTotal: number;
+    igstTotal?: number;
+    isInterState?: boolean;
+    gstRate?: number;
     totalGst: number;
     shippingFee: number;
     grandTotal: number;
@@ -457,7 +462,11 @@ export function generateInvoiceHtml(data: InvoiceData): string {
         <div class="words-label">Amount in Words (INR)</div>
         <div style="font-weight: 600; color: #222; font-size: 13px;">${esc(data.summary.amountInWords)}</div>
         <div style="margin-top: 12px; font-size: 11px; color: #666;">
-          GST Breakdown: Total Taxable ₹${data.summary.taxableSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} + CGST ₹${data.summary.cgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} + SGST ₹${data.summary.sgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} = Total GST ₹${data.summary.totalGst.toLocaleString("en-IN", { minimumFractionDigits: 2 })} (18%).
+          ${
+            data.summary.isInterState
+              ? `GST/CST Breakdown: Total Taxable ₹${data.summary.taxableSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} + Inter-State IGST/CST (${data.summary.gstRate || 18}%) ₹${(data.summary.igstTotal || data.summary.totalGst).toLocaleString("en-IN", { minimumFractionDigits: 2 })} = Total Tax ₹${data.summary.totalGst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}.`
+              : `GST Breakdown: Total Taxable ₹${data.summary.taxableSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} + CGST ₹${data.summary.cgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} + SGST ₹${data.summary.sgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })} = Total GST ₹${data.summary.totalGst.toLocaleString("en-IN", { minimumFractionDigits: 2 })} (${data.summary.gstRate || 18}%).`
+          }
         </div>
       </div>
 
@@ -479,14 +488,21 @@ export function generateInvoiceHtml(data: InvoiceData): string {
             <td style="color: #666;">Taxable Value:</td>
             <td class="right">₹${data.summary.taxableSubtotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
-          <tr>
-            <td style="color: #666;">Central GST (9%):</td>
+          ${
+            data.summary.isInterState
+              ? `<tr>
+            <td style="color: #666;">Integrated GST / CST (${data.summary.gstRate || 18}%):</td>
+            <td class="right">₹${(data.summary.igstTotal || data.summary.totalGst).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>`
+              : `<tr>
+            <td style="color: #666;">Central GST (${Math.round(((data.summary.gstRate || 18) / 2) * 10) / 10}%):</td>
             <td class="right">₹${data.summary.cgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
           <tr>
-            <td style="color: #666;">State GST (9%):</td>
+            <td style="color: #666;">State GST (${Math.round(((data.summary.gstRate || 18) / 2) * 10) / 10}%):</td>
             <td class="right">₹${data.summary.sgstTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          </tr>
+          </tr>`
+          }
           <tr>
             <td style="color: #666;">White-Glove Shipping:</td>
             <td class="right">${data.summary.shippingFee === 0 ? "FREE" : `₹${data.summary.shippingFee}`}</td>
@@ -508,7 +524,7 @@ export function generateInvoiceHtml(data: InvoiceData): string {
       <div class="signature-box">
         <div class="signature-line"></div>
         <b>Authorized Signatory</b><br />
-        For She'Aura Haute Parfums &amp; Cosm&eacute;tiques Pvt. Ltd.
+        For ${esc(data.seller.legalName)}
       </div>
     </div>
   </div>
@@ -550,10 +566,27 @@ export function buildInvoiceDataFromAdminOrder(order: any): InvoiceData {
   const shippingFee = Number(order.shipping_fee || 0);
   const grandTotal = totalNum;
 
-  const taxableSubtotal = Math.round((grandTotal / 1.18) * 100) / 100;
-  const totalGst = Math.round((grandTotal - taxableSubtotal) * 100) / 100;
-  const cgstTotal = Math.round((totalGst / 2) * 100) / 100;
-  const sgstTotal = Math.round((totalGst - cgstTotal) * 100) / 100;
+  // Retrieve dynamic statutory tax settings
+  const settings = getTaxSettings();
+  const gstRate = Number(settings.defaultGstRate) || 18;
+
+  const clientName = order.client_name || order.customer_name || "Maison Member";
+  const clientEmail = order.client_email || order.customer_email || "client@sheaura.com";
+  const clientPhone = order.client_phone || order.customer_phone || "+91 98200 11223";
+  const addr = order.shipping_address || "Haute Luxury Boulevard, Mumbai, Maharashtra 400001";
+
+  const addrParts = addr.split(",").map((s: string) => s.trim());
+  const city = addrParts.length >= 2 ? addrParts[addrParts.length - 2] : "Mumbai";
+  const state = addrParts.length >= 1 ? addrParts[addrParts.length - 1].split("-")[0].trim() : "Maharashtra";
+  const pincodeMatch = addr.match(/\b\d{6}\b/);
+  const pincode = pincodeMatch ? pincodeMatch[0] : "400001";
+
+  const taxBreakdown = calculateDynamicTax(grandTotal, state, settings);
+  const taxableSubtotal = taxBreakdown.taxableAmount;
+  const totalGst = taxBreakdown.totalGst;
+  const cgstTotal = taxBreakdown.cgstAmount;
+  const sgstTotal = taxBreakdown.sgstAmount;
+  const igstTotal = taxBreakdown.igstAmount;
 
   const invoiceItems: InvoiceItem[] = rawItems.map((item: any, idx: number) => {
     const qty = Number(item.quantity) || 1;
@@ -568,10 +601,8 @@ export function buildInvoiceDataFromAdminOrder(order: any): InvoiceData {
         : typeof item.priceNum === "number"
         ? item.priceNum * qty
         : unitP * qty;
-    const itemTaxable = Math.round((lineTotal / 1.18) * 100) / 100;
-    const itemGst = Math.round((lineTotal - itemTaxable) * 100) / 100;
-    const itemCgst = Math.round((itemGst / 2) * 100) / 100;
-    const itemSgst = Math.round((itemGst - itemCgst) * 100) / 100;
+
+    const itemTax = calculateDynamicTax(lineTotal, state, settings);
 
     const cat = String(item.name || "").toLowerCase();
     const isPerfume = cat.includes("perfume") || cat.includes("extrait") || cat.includes("scent");
@@ -580,45 +611,34 @@ export function buildInvoiceDataFromAdminOrder(order: any): InvoiceData {
       slNo: idx + 1,
       productName: item.name || "Maison Creation",
       variantOrShade: item.shade || "Haute Finish",
-      hsnCode: isPerfume ? "33030010" : "33041000",
+      hsnCode: isPerfume ? (settings.hsnPerfumery || "33030010") : (settings.hsnCosmetics || "33041000"),
       quantity: qty,
       unitPrice: unitP,
-      taxableAmount: itemTaxable,
-      cgstRate: "9%",
-      cgstAmount: itemCgst,
-      sgstRate: "9%",
-      sgstAmount: itemSgst,
+      taxableAmount: itemTax.taxableAmount,
+      cgstRate: `${itemTax.cgstRate}%`,
+      cgstAmount: itemTax.cgstAmount,
+      sgstRate: `${itemTax.sgstRate}%`,
+      sgstAmount: itemTax.sgstAmount,
       totalAmount: lineTotal,
     };
   });
-
-  const clientName = order.client_name || order.customer_name || "Maison Member";
-  const clientEmail = order.client_email || order.customer_email || "client@sheaura.com";
-  const clientPhone = order.client_phone || order.customer_phone || "+91 98200 11223";
-  const addr = order.shipping_address || "Haute Luxury Boulevard, Mumbai, Maharashtra 400001";
-
-  const addrParts = addr.split(",").map((s: string) => s.trim());
-  const city = addrParts.length >= 2 ? addrParts[addrParts.length - 2] : "Mumbai";
-  const state = addrParts.length >= 1 ? addrParts[addrParts.length - 1].split("-")[0].trim() : "Maharashtra";
-  const pincodeMatch = addr.match(/\b\d{6}\b/);
-  const pincode = pincodeMatch ? pincodeMatch[0] : "400001";
 
   const cleanOrderId = order.id || `SH-${Date.now()}`;
   const invCode = cleanOrderId.includes("-") ? cleanOrderId.split("-").pop() : cleanOrderId.slice(-6);
 
   return {
-    invoiceNumber: `INV-${new Date().getFullYear()}-${String(invCode).toUpperCase()}`,
+    invoiceNumber: `${settings.invoicePrefix || "INV-2026"}-${String(invCode).toUpperCase()}`,
     orderId: cleanOrderId,
     date: order.created_at
       ? new Date(order.created_at).toLocaleDateString("en-IN", { dateStyle: "long" })
       : new Date().toLocaleDateString("en-IN", { dateStyle: "long" }),
     seller: {
-      legalName: "She'Aura Haute Parfums & Cosmétiques Pvt. Ltd.",
-      brand: "SHE'AURA",
-      address: "DLF Promenade, Luxury Mall Wing, Vasant Kunj",
-      cityState: "New Delhi, Delhi 110070, India",
-      gstin: "07AABCS1429B1Z8",
-      pan: "AABCS1429B",
+      legalName: settings.legalEntityName || "She'Aura Haute Parfums & Cosmétiques Pvt. Ltd.",
+      brand: settings.brandTradeName || "SHE'AURA",
+      address: settings.registeredAddress || "DLF Promenade, Luxury Mall Wing, Vasant Kunj",
+      cityState: `${settings.stateOfOrigin || "Delhi"}, India (State Code: ${settings.stateCode || "07"})`,
+      gstin: settings.gstin || "07AABCS1429B1Z8",
+      pan: settings.pan || "AABCS1429B",
       email: "concierge@sheaura.com",
       phone: "+91 11 4982 0000",
     },
@@ -645,10 +665,13 @@ export function buildInvoiceDataFromAdminOrder(order: any): InvoiceData {
     summary: {
       subtotal,
       discountAmount,
-      discountCode: discountAmount > 0 ? "WELCOME10" : null,
+      discountCode: discountAmount > 0 ? (order.discount_code || "WELCOME10") : null,
       taxableSubtotal,
       cgstTotal,
       sgstTotal,
+      igstTotal,
+      isInterState: taxBreakdown.isInterState,
+      gstRate,
       totalGst,
       shippingFee,
       grandTotal,
@@ -657,8 +680,9 @@ export function buildInvoiceDataFromAdminOrder(order: any): InvoiceData {
   };
 }
 
-export function downloadInvoiceHtml(html: string, filename = "SheAura-Tax-Invoice.html") {
+export function downloadInvoiceHtml(invoiceOrHtml: InvoiceData | string, filename = "SheAura-Tax-Invoice.html") {
   if (typeof window === "undefined") return;
+  const html = typeof invoiceOrHtml === "string" ? invoiceOrHtml : generateInvoiceHtml(invoiceOrHtml);
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

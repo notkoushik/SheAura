@@ -70,6 +70,13 @@ import {
   printInvoiceHtml,
   InvoiceData,
 } from "./lib/invoice";
+import {
+  getTaxSettings,
+  saveTaxSettings,
+  validateGstin,
+  INDIAN_STATES_MAP,
+  TaxSettings,
+} from "./lib/taxSettings";
 import SheAuraLogo from "./SheAuraLogo";
 
 export interface AdminOrderItem {
@@ -417,6 +424,31 @@ export default function AdminView({ onBack }: AdminViewProps) {
       deleteCoupon(code);
       setCoupons(getAllCoupons());
       showNotice(`🗑️ Voucher "${code}" deleted permanently.`);
+    }
+  };
+
+  // Statutory Tax & GST / CST Settings State
+  const [taxSettings, setTaxSettingsState] = useState<TaxSettings>(() => getTaxSettings());
+  const [isSavingTax, setIsSavingTax] = useState(false);
+  const [taxSuccessNotice, setTaxSuccessNotice] = useState<string | null>(null);
+
+  const gstinValidation = useMemo(() => {
+    return validateGstin(taxSettings.gstin);
+  }, [taxSettings.gstin]);
+
+  const handleSaveTaxSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingTax(true);
+    try {
+      const saved = await saveTaxSettings(taxSettings);
+      setTaxSettingsState(saved);
+      showNotice("🏛️ Statutory GST & CST settings saved & synchronized with database.");
+      setTaxSuccessNotice("Settings saved and live on all customer invoices!");
+      setTimeout(() => setTaxSuccessNotice(null), 5000);
+    } catch (err: any) {
+      showNotice("⚠️ Failed to update tax settings.");
+    } finally {
+      setIsSavingTax(false);
     }
   };
 
@@ -2937,40 +2969,389 @@ export default function AdminView({ onBack }: AdminViewProps) {
             </div>
           )}
 
-          {/* ================= TAB 6: SETTINGS & GATEWAY (STOREFRONT THEME) ================= */}
+          {/* ================= TAB 7: SETTINGS & STATUTORY TAX ARCHITECTURE (STOREFRONT THEME) ================= */}
           {activeTab === "settings" && (
-            <div style={{ maxWidth: "800px" }}>
-              <div style={{ marginBottom: "20px" }}>
+            <div style={{ maxWidth: "900px" }}>
+              <div style={{ marginBottom: "24px" }}>
                 <div style={{ fontSize: "10.5px", letterSpacing: "0.18em", textTransform: "uppercase", color: THEME.gold, fontWeight: 700 }}>
                   STUDIO DIRECTOR CONSOLE
                 </div>
                 <h1 style={{ fontFamily: THEME.fontSerif, fontSize: "32px", fontWeight: 600, margin: "4px 0 0", color: THEME.ink }}>
-                  SYSTEM & SECURITY SETTINGS
+                  STATUTORY TAX & REGULATORY SETTINGS
                 </h1>
                 <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: THEME.inkMuted }}>
-                  Administrative credentials, Supabase database synchronization, and gateway protection.
+                  Manage your official GSTIN, legal enterprise credentials, intra-state CGST/SGST splits, and inter-state CST/IGST rates. Changes synchronize dynamically with the backend and customer tax invoices.
                 </p>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: THEME.ink, marginBottom: "8px" }}>
-                    Dedicated Gateway Isolation
+              {taxSuccessNotice && (
+                <div
+                  style={{
+                    background: THEME.greenBg,
+                    border: "1px solid rgba(45, 94, 53, 0.3)",
+                    color: THEME.greenText,
+                    borderRadius: "8px",
+                    padding: "12px 18px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    marginBottom: "20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>{taxSuccessNotice}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveTaxSettings} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                {/* 1. Legal Identity & GSTIN Registration */}
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", borderBottom: `1px solid ${THEME.inkBorderSubtle}`, paddingBottom: "12px" }}>
+                    <FileText size={18} style={{ color: THEME.gold }} />
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink }}>
+                      Legal Business Identity & Statutory GSTIN
+                    </h3>
                   </div>
-                  <div style={{ fontSize: "12px", color: THEME.inkMuted, lineHeight: 1.6 }}>
-                    Direct admin panel login is strictly routed through <b>/sheaura/login</b>. Unauthenticated visits to <b>/admin</b> automatically redirect to the isolated login portal with cryptographic signature verification.
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Legal Registered Entity Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={taxSettings.legalEntityName}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, legalEntityName: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "12.5px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Brand / Trade Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={taxSettings.brandTradeName}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, brandTradeName: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "12.5px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "16px", marginBottom: "16px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Statutory 15-Digit GSTIN Number *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={15}
+                        placeholder="e.g. 07AABCS1429B1Z8"
+                        value={taxSettings.gstin}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                          setTaxSettingsState((prev) => ({
+                            ...prev,
+                            gstin: val,
+                            pan: val.length >= 12 ? val.slice(2, 12) : prev.pan,
+                            stateCode: val.length >= 2 ? val.slice(0, 2) : prev.stateCode,
+                            stateOfOrigin: val.length >= 2 && INDIAN_STATES_MAP[val.slice(0, 2)] ? INDIAN_STATES_MAP[val.slice(0, 2)] : prev.stateOfOrigin,
+                          }));
+                        }}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", borderRadius: "6px", border: `1px solid ${gstinValidation.valid ? THEME.greenText : THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                      <div style={{ marginTop: "6px", fontSize: "10.5px" }}>
+                        {gstinValidation.valid ? (
+                          <span style={{ color: THEME.greenText, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <CheckCircle2 size={13} /> Valid Statutory GSTIN: Registered State — <b>{gstinValidation.stateName}</b> (State Code: {gstinValidation.stateCode})
+                          </span>
+                        ) : (
+                          <span style={{ color: THEME.redText }}>
+                            ⚠️ {gstinValidation.error || "Please enter a valid 15-character GSTIN (e.g. 07AABCS1429B1Z8)."}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Permanent Account Number (PAN) *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={10}
+                        placeholder="e.g. AABCS1429B"
+                        value={taxSettings.pan}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, pan: e.target.value.toUpperCase() }))}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                      <div style={{ marginTop: "4px", fontSize: "10.5px", color: THEME.inkSubtle }}>
+                        Auto-extracted from characters 3-12 of GSTIN.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: "16px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Principal Place of Business & Dispatch Atelier *
+                      </label>
+                      <textarea
+                        rows={2}
+                        required
+                        value={taxSettings.registeredAddress}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, registeredAddress: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Dispatch Origin State & Code
+                      </label>
+                      <select
+                        value={taxSettings.stateCode}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          setTaxSettingsState((prev) => ({
+                            ...prev,
+                            stateCode: code,
+                            stateOfOrigin: INDIAN_STATES_MAP[code] || "Delhi",
+                          }));
+                        }}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      >
+                        {Object.entries(INDIAN_STATES_MAP).map(([code, name]) => (
+                          <option key={code} value={code}>
+                            [{code}] {name}
+                          </option>
+                        ))}
+                      </select>
+                      <div style={{ marginTop: "4px", fontSize: "10.5px", color: THEME.inkSubtle }}>
+                        Used to automatically distinguish intra-state vs inter-state shipments.
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "20px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: THEME.ink, marginBottom: "8px" }}>
-                    Database Synchronization Status
+                {/* 2. Tax Rates Matrix & Inter-State CST */}
+                <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", padding: "24px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px", borderBottom: `1px solid ${THEME.inkBorderSubtle}`, paddingBottom: "12px" }}>
+                    <Percent size={18} style={{ color: THEME.gold }} />
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, fontFamily: THEME.fontSerif, color: THEME.ink }}>
+                      Statutory Tax Rates Matrix (GST & CST / IGST)
+                    </h3>
                   </div>
-                  <div style={{ fontSize: "12px", color: THEME.greenText, display: "flex", alignItems: "center", gap: "6px" }}>
-                    <ShieldCheck size={16} /> Direct Supabase cloud database connected (PostgreSQL / RLS enabled)
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "14px", marginBottom: "18px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Total GST Rate (%) *
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min={0}
+                        max={100}
+                        value={taxSettings.defaultGstRate}
+                        onChange={(e) => {
+                          const rate = Number(e.target.value);
+                          const half = Math.round((rate / 2) * 10) / 10;
+                          setTaxSettingsState((prev) => ({
+                            ...prev,
+                            defaultGstRate: rate,
+                            cgstRate: half,
+                            sgstRate: half,
+                            igstRate: rate,
+                          }));
+                        }}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "13px", fontWeight: 700, borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Intra-State CGST (%)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={50}
+                        step={0.5}
+                        value={taxSettings.cgstRate}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, cgstRate: Number(e.target.value) }))}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "13px", fontWeight: 700, borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Intra-State SGST (%)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={50}
+                        step={0.5}
+                        value={taxSettings.sgstRate}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, sgstRate: Number(e.target.value) }))}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "13px", fontWeight: 700, borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Inter-State IGST/CST (%)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={taxSettings.igstRate}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, igstRate: Number(e.target.value) }))}
+                        style={{ width: "100%", padding: "10px 12px", fontSize: "13px", fontWeight: 700, borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ background: THEME.creamLight, border: `1px solid ${THEME.inkBorderSubtle}`, borderRadius: "8px", padding: "12px 16px", marginBottom: "18px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", fontSize: "12px", fontWeight: 600, color: THEME.ink }}>
+                      <input
+                        type="checkbox"
+                        checked={taxSettings.cstInterStateEnabled}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, cstInterStateEnabled: e.target.checked }))}
+                        style={{ width: "16px", height: "16px", accentColor: THEME.ink }}
+                      />
+                      <span>Enable Inter-State Commerce (CST / IGST Single Tax) for deliveries outside {taxSettings.stateOfOrigin}</span>
+                    </label>
+                    <div style={{ fontSize: "10.5px", color: THEME.inkMuted, marginTop: "4px", marginLeft: "26px" }}>
+                      When enabled, orders delivered outside {taxSettings.stateOfOrigin} automatically apply Integrated GST (IGST/CST) instead of the intra-state CGST + SGST split.
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Cosmetics HSN Code
+                      </label>
+                      <input
+                        type="text"
+                        value={taxSettings.hsnCosmetics}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, hsnCosmetics: e.target.value }))}
+                        style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Perfumery HSN Code
+                      </label>
+                      <input
+                        type="text"
+                        value={taxSettings.hsnPerfumery}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, hsnPerfumery: e.target.value }))}
+                        style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: THEME.gold, marginBottom: "6px", textTransform: "uppercase" }}>
+                        Invoice Number Prefix
+                      </label>
+                      <input
+                        type="text"
+                        value={taxSettings.invoicePrefix}
+                        onChange={(e) => setTaxSettingsState((prev) => ({ ...prev, invoicePrefix: e.target.value.toUpperCase() }))}
+                        style={{ width: "100%", padding: "9px 12px", fontSize: "12px", borderRadius: "6px", border: `1px solid ${THEME.inkBorder}`, background: "#ffffff", color: THEME.ink }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                {/* 3. Live Tax Engine Simulator Preview */}
+                <div style={{ background: THEME.cream, border: `1px solid ${THEME.inkBorder}`, borderRadius: "12px", padding: "20px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: THEME.gold, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>
+                    ⚡ Real-Time Tax Engine Calculation Preview (Sample ₹2,198 Order)
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", fontSize: "11.5px" }}>
+                    <div style={{ background: "#ffffff", padding: "12px 14px", borderRadius: "8px", border: `1px solid ${THEME.inkBorderSubtle}` }}>
+                      <b style={{ color: THEME.ink, display: "block", marginBottom: "4px" }}>Intra-State Delivery (Within {taxSettings.stateOfOrigin})</b>
+                      <div style={{ color: THEME.inkMuted, lineHeight: 1.6 }}>
+                        Taxable Subtotal: <b>₹{Math.round((2198 / (1 + taxSettings.defaultGstRate / 100)) * 100) / 100}</b><br />
+                        Central GST ({taxSettings.cgstRate}%): <b>₹{Math.round(((2198 - 2198 / (1 + taxSettings.defaultGstRate / 100)) / 2) * 100) / 100}</b><br />
+                        State GST ({taxSettings.sgstRate}%): <b>₹{Math.round(((2198 - 2198 / (1 + taxSettings.defaultGstRate / 100)) / 2) * 100) / 100}</b><br />
+                        Total Invoice Amount: <b style={{ color: THEME.gold }}>₹2,198.00</b>
+                      </div>
+                    </div>
+
+                    <div style={{ background: "#ffffff", padding: "12px 14px", borderRadius: "8px", border: `1px solid ${THEME.inkBorderSubtle}` }}>
+                      <b style={{ color: THEME.ink, display: "block", marginBottom: "4px" }}>Inter-State Delivery (e.g. to Maharashtra/Bengal)</b>
+                      <div style={{ color: THEME.inkMuted, lineHeight: 1.6 }}>
+                        Taxable Subtotal: <b>₹{Math.round((2198 / (1 + taxSettings.defaultGstRate / 100)) * 100) / 100}</b><br />
+                        Inter-State IGST / CST ({taxSettings.igstRate}%): <b>₹{Math.round((2198 - 2198 / (1 + taxSettings.defaultGstRate / 100)) * 100) / 100}</b><br />
+                        CGST / SGST: <b>₹0.00 (Exempt)</b><br />
+                        Total Invoice Amount: <b style={{ color: THEME.gold }}>₹2,198.00</b>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                  <button
+                    type="submit"
+                    disabled={isSavingTax}
+                    style={{
+                      background: THEME.ink,
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "12px 28px",
+                      fontSize: "12.5px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      boxShadow: "0 4px 14px rgba(33, 19, 15, 0.2)",
+                    }}
+                  >
+                    <Check size={16} />
+                    <span>{isSavingTax ? "Saving & Syncing Cloud..." : "Save & Synchronize Statutory Tax Architecture"}</span>
+                  </button>
+                </div>
+
+                {/* 4. Security Gateway & Database Status Cards */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "10px" }}>
+                  <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: THEME.ink, marginBottom: "6px" }}>
+                      Dedicated Gateway Isolation
+                    </div>
+                    <div style={{ fontSize: "11px", color: THEME.inkMuted, lineHeight: 1.5 }}>
+                      Admin console access is strictly guarded at <b>/sheaura/login</b>. Unauthenticated visits to <b>/admin</b> automatically redirect to the isolated login portal with cryptographic signature verification.
+                    </div>
+                  </div>
+
+                  <div style={{ background: THEME.cardBg, border: `1px solid ${THEME.inkBorder}`, borderRadius: "10px", padding: "18px", boxShadow: "0 2px 8px rgba(33, 19, 15, 0.04)" }}>
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: THEME.ink, marginBottom: "6px" }}>
+                      Database Synchronization Status
+                    </div>
+                    <div style={{ fontSize: "11.5px", color: THEME.greenText, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <ShieldCheck size={16} /> Direct Supabase cloud database connected (PostgreSQL / RLS enabled)
+                    </div>
+                    <div style={{ fontSize: "10.5px", color: THEME.inkSubtle, marginTop: "4px" }}>
+                      Statutory tax records stored in <code>public.app_settings</code> table.
+                    </div>
+                  </div>
+                </div>
+              </form>
             </div>
           )}
         </main>

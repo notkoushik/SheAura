@@ -204,3 +204,84 @@ export async function getAdminStats(req: AuthenticatedRequest, res: Response): P
     res.status(500).json({ error: "Server error", message: err?.message });
   }
 }
+
+const DEFAULT_TAX_CONFIG = {
+  legalEntityName: "She'Aura Haute Parfums & Cosmétiques Pvt. Ltd.",
+  brandTradeName: "SHE'AURA",
+  gstin: "07AABCS1429B1Z8",
+  pan: "AABCS1429B",
+  registeredAddress: "DLF Promenade, Luxury Mall Wing, Vasant Kunj, New Delhi 110070",
+  stateOfOrigin: "Delhi",
+  stateCode: "07",
+  defaultGstRate: 18,
+  cgstRate: 9,
+  sgstRate: 9,
+  igstRate: 18,
+  cstInterStateEnabled: true,
+  hsnCosmetics: "33041000",
+  hsnPerfumery: "33030010",
+  invoicePrefix: "INV-2026",
+};
+
+/** Get statutory tax settings (GST / CST & GSTIN numbers) */
+export async function getTaxSettingsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("app_settings")
+      .select("value")
+      .eq("key", "tax_settings")
+      .single();
+
+    if (!error && data?.value) {
+      res.json({ success: true, settings: data.value });
+      return;
+    }
+
+    res.json({ success: true, settings: DEFAULT_TAX_CONFIG });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to retrieve tax settings", details: err?.message });
+  }
+}
+
+/** Update statutory tax settings with strict admin authentication */
+export async function updateTaxSettingsHandler(req: AuthenticatedRequest, res: Response): Promise<void> {
+  try {
+    const updates = req.body;
+    if (!updates || typeof updates !== "object") {
+      res.status(400).json({ error: "Tax settings payload is required" });
+      return;
+    }
+
+    const cleanGstin = String(updates.gstin || DEFAULT_TAX_CONFIG.gstin).trim().toUpperCase();
+    const cleanSettings = {
+      ...DEFAULT_TAX_CONFIG,
+      ...updates,
+      gstin: cleanGstin,
+      defaultGstRate: Number(updates.defaultGstRate) || 18,
+      cgstRate: Number(updates.cgstRate) || 9,
+      sgstRate: Number(updates.sgstRate) || 9,
+      igstRate: Number(updates.igstRate) || 18,
+      updatedAt: new Date().toISOString(),
+      updatedBy: req.user?.email || "Admin Vault",
+    };
+
+    const { data, error } = await supabaseAdmin
+      .from("app_settings")
+      .upsert({
+        key: "tax_settings",
+        value: cleanSettings,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      res.status(500).json({ error: "Failed to persist tax settings in database", details: error.message });
+      return;
+    }
+
+    res.json({ success: true, settings: cleanSettings, message: "Tax & CST settings successfully persisted." });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error updating tax settings", details: err?.message });
+  }
+}

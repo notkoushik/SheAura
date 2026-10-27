@@ -13,7 +13,13 @@ import {
 } from "./lib/auth";
 import { supabase, isSupabaseConfigured } from "./lib/supabase";
 import { products, Product } from "./App";
-import { generateInvoiceHtml, InvoiceData } from "./lib/invoice";
+import {
+  generateInvoiceHtml,
+  buildInvoiceDataFromAdminOrder,
+  downloadInvoiceHtml,
+  InvoiceData,
+} from "./lib/invoice";
+import { getTaxSettings } from "./lib/taxSettings";
 import {
   Sparkles,
   Gift,
@@ -33,6 +39,12 @@ import {
   FileText,
   Copy,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  CreditCard,
+  Tag,
+  HelpCircle,
   User,
   ExternalLink,
   Edit3,
@@ -202,6 +214,64 @@ export default function AuthAccountView({
   // Active Tracking Order Modal
   const [trackingOrder, setTrackingOrder] = useState<OrderHistoryItem | null>(null);
 
+  // Expanded Order Dossier Accordions
+  const [expandedOrderIds, setExpandedOrderIds] = useState<Set<string>>(new Set());
+  const [copiedTrackingId, setCopiedTrackingId] = useState<string | null>(null);
+  const [supportModalOrder, setSupportModalOrder] = useState<OrderHistoryItem | null>(null);
+
+  const toggleOrderExpanded = (orderId: string) => {
+    setExpandedOrderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  };
+
+  const copyToClipboard = (text: string, trackingKey: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedTrackingId(trackingKey);
+    showNotification(`Copied to clipboard: ${text}`);
+    setTimeout(() => {
+      setCopiedTrackingId((current) => (current === trackingKey ? null : current));
+    }, 2500);
+  };
+
+  const handleBuyAgain = (item: any) => {
+    const foundProduct = products.find(
+      (p) =>
+        (item.productId && (p.slug === item.productId || p.id === item.productId)) ||
+        p.name.toLowerCase() === item.name.toLowerCase()
+    );
+
+    if (foundProduct && onAddToCart) {
+      onAddToCart(foundProduct);
+      showNotification(`Added ${foundProduct.name} to your vanity bag!`);
+      if (onOpenCart) onOpenCart();
+    } else if (onAddToCart) {
+      const fallbackProd: Product = {
+        id: item.productId || `reorder-${Date.now()}`,
+        name: item.name,
+        category: "Cosmetics",
+        price: item.price || `₹${item.unitPrice || 899}`,
+        image: item.image || FALLBACK_PRODUCT_IMAGE,
+        description: `Signature She'Aura couture formula - ${item.shade || "Selected Shade"}`,
+        shades: item.shade ? [item.shade] : ["Signature Shade"],
+        rating: 4.9,
+        reviewsCount: 142,
+        isBestseller: true,
+      };
+      onAddToCart(fallbackProd);
+      showNotification(`Added ${item.name} to your vanity bag!`);
+      if (onOpenCart) onOpenCart();
+    }
+  };
+
   // Address edit state
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [addressForm, setAddressForm] = useState(() => {
@@ -227,10 +297,61 @@ export default function AuthAccountView({
     setTimeout(() => setPassportToast(null), 3500);
   };
 
-  // Sync orders from Supabase & Local Session
+  // Sync orders from Supabase & Local Session with rich e-commerce dossier fields
   const fetchOrders = async (userEmail: string, localOrders: OrderHistoryItem[] = []) => {
     setLoadingOrders(true);
     let combined = [...localOrders];
+
+    const parseOrderItems = (raw: any, fallbackPriceNum: number) => {
+      let itemsList: any[] = [];
+      if (Array.isArray(raw)) {
+        itemsList = raw;
+      } else if (typeof raw === "string") {
+        try {
+          itemsList = JSON.parse(raw);
+        } catch {
+          itemsList = [];
+        }
+      }
+
+      if (!Array.isArray(itemsList) || itemsList.length === 0) {
+        return [
+          {
+            id: "item-default",
+            productId: "lip-01",
+            name: "Maison Haute Couture Formulation",
+            shade: "Signature Shade",
+            quantity: 1,
+            unitPrice: fallbackPriceNum || 1099,
+            itemTotal: fallbackPriceNum || 1099,
+            price: `₹${(fallbackPriceNum || 1099).toLocaleString("en-IN")}`,
+            image: FALLBACK_PRODUCT_IMAGE,
+          },
+        ];
+      }
+
+      return itemsList.map((i: any, idx: number) => {
+        const qty = Number(i.quantity) || 1;
+        const uPrice =
+          Number(i.unitPrice) ||
+          Number(i.priceNum) ||
+          (typeof i.price === "number" ? i.price : parseInt(String(i.price || "").replace(/[^0-9]/g, ""), 10)) ||
+          Math.round((fallbackPriceNum || 1099) / Math.max(1, qty));
+        const total = Number(i.itemTotal) || uPrice * qty;
+
+        return {
+          id: i.id || i.productId || `item-${idx}`,
+          productId: i.productId || i.slug || i.id || `prod-${idx}`,
+          name: i.name || "Maison Cosmetic Creation",
+          shade: i.selectedShade || i.shade || i.category || "Signature Shade",
+          quantity: qty,
+          unitPrice: uPrice,
+          itemTotal: total,
+          price: `₹${uPrice.toLocaleString("en-IN")}`,
+          image: i.image || FALLBACK_PRODUCT_IMAGE,
+        };
+      });
+    };
 
     if (isSupabaseConfigured && userEmail) {
       try {
@@ -242,51 +363,68 @@ export default function AuthAccountView({
 
         if (!error && Array.isArray(data)) {
           const mapped: OrderHistoryItem[] = data.map((d: any) => {
-            let items: any[] = [];
-            if (Array.isArray(d.items)) {
-              items = d.items;
-            } else if (typeof d.items === "string") {
-              try {
-                items = JSON.parse(d.items);
-              } catch {
-                items = [];
-              }
-            }
+            const rawPriceNum =
+              typeof d.total_price === "number"
+                ? d.total_price
+                : parseFloat(String(d.total_amount || "").replace(/[^0-9.]/g, "")) || 0;
 
-            const formattedItems = items.map((i: any) => ({
-              name: i.name || "Maison Cosmetic Creation",
-              shade: i.shade || i.category || "Signature Shade",
-              price: i.unitPrice ? `₹${Number(i.unitPrice).toLocaleString("en-IN")}` : (i.price || "₹899"),
-              image: i.image || FALLBACK_PRODUCT_IMAGE,
-            }));
+            const formattedItems = parseOrderItems(d.items, rawPriceNum);
 
             const createdDate = d.created_at
-              ? new Date(d.created_at).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" })
+              ? new Date(d.created_at).toLocaleDateString("en-IN", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
               : "Recent Order";
+
+            const exactTime = d.created_at
+              ? new Date(d.created_at).toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                })
+              : "";
 
             const totalStr =
               d.total_amount && d.total_amount !== "₹0"
                 ? d.total_amount
-                : d.total_price
-                ? `₹${Number(d.total_price).toLocaleString("en-IN")}`
-                : "₹1,099";
+                : `₹${rawPriceNum.toLocaleString("en-IN")}`;
+
+            const calculatedSubtotal =
+              Number(d.subtotal) ||
+              formattedItems.reduce((acc, it) => acc + (it.itemTotal || it.unitPrice || 0), 0) ||
+              rawPriceNum;
 
             return {
               id: d.id,
               date: createdDate,
-              itemsCount: d.items_count || formattedItems.length || 1,
+              exactTime,
+              itemsCount: d.items_count || formattedItems.reduce((acc, it) => acc + (it.quantity || 1), 0) || 1,
               totalAmount: totalStr,
-              status: d.status === "delivered" ? "delivered" : (d.status === "dispatched" ? "dispatched" : "processing"),
+              rawTotal: rawPriceNum,
+              subtotal: calculatedSubtotal,
+              discountCode: d.discount_code || undefined,
+              discountAmount: Number(d.discount_amount || d.discount || 0),
+              shippingFee: Number(d.shipping_fee || 0),
+              paymentMethod: d.payment_method
+                ? d.payment_method.toLowerCase() === "cod"
+                  ? "Cash on Delivery"
+                  : `${d.payment_method.toUpperCase()} / Instant Prepaid`
+                : "Prepaid UPI / Card",
+              paymentStatus: d.payment_status || (d.payment_method === "cod" ? "Awaiting Delivery" : "Paid & Verified"),
+              shippingAddress: d.shipping_address || "",
+              recipientName: d.customer_name || d.client_name || user?.fullName || "Maison Member",
+              recipientPhone: d.customer_phone || d.client_phone || user?.phone || "",
+              carrierName:
+                d.carrier_name ||
+                (d.tracking_number?.startsWith("EXP")
+                  ? "BlueDart Express White-Glove Air"
+                  : "BlueDart Express Air"),
+              status: d.status === "delivered" ? "delivered" : d.status === "dispatched" ? "dispatched" : "processing",
               trackingNumber: d.tracking_number || "Awaiting Dispatch Scan",
               eta: d.eta || (d.status === "delivered" ? "Delivered to Residence" : "Arriving in 2-3 Business Days"),
-              items: formattedItems.length ? formattedItems : [
-                {
-                  name: "Signature Collection Piece",
-                  shade: "Haute Shade",
-                  price: totalStr,
-                  image: FALLBACK_PRODUCT_IMAGE,
-                },
-              ],
+              items: formattedItems,
             };
           });
 
@@ -301,26 +439,63 @@ export default function AuthAccountView({
                   const cEmail = (lo.customer_email || lo.client_email || "").toLowerCase();
                   if (cEmail === userEmail.toLowerCase() && !existingIds.has(lo.id)) {
                     existingIds.add(lo.id);
+                    const rawNum =
+                      typeof lo.total_price === "number"
+                        ? lo.total_price
+                        : parseFloat(String(lo.total_amount || "").replace(/[^0-9.]/g, "")) || 0;
+                    const itemsParsed = parseOrderItems(lo.items, rawNum);
+
                     mapped.unshift({
                       id: lo.id,
-                      date: lo.created_at ? new Date(lo.created_at).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" }) : "Today",
-                      itemsCount: lo.items_count || 1,
-                      totalAmount: lo.total_amount && lo.total_amount !== "₹0" ? lo.total_amount : (lo.total_price ? `₹${Number(lo.total_price).toLocaleString("en-IN")}` : "₹1,099"),
+                      date: lo.created_at
+                        ? new Date(lo.created_at).toLocaleDateString("en-IN", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })
+                        : "Today",
+                      exactTime: lo.created_at
+                        ? new Date(lo.created_at).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                          })
+                        : "",
+                      itemsCount: lo.items_count || itemsParsed.reduce((acc, it) => acc + (it.quantity || 1), 0) || 1,
+                      totalAmount:
+                        lo.total_amount && lo.total_amount !== "₹0"
+                          ? lo.total_amount
+                          : `₹${rawNum.toLocaleString("en-IN")}`,
+                      rawTotal: rawNum,
+                      subtotal:
+                        Number(lo.subtotal) ||
+                        itemsParsed.reduce((acc, it) => acc + (it.itemTotal || it.unitPrice || 0), 0) ||
+                        rawNum,
+                      discountCode: lo.discount_code || undefined,
+                      discountAmount: Number(lo.discount_amount || lo.discount || 0),
+                      shippingFee: Number(lo.shipping_fee || 0),
+                      paymentMethod: lo.payment_method
+                        ? lo.payment_method.toLowerCase() === "cod"
+                          ? "Cash on Delivery"
+                          : `${lo.payment_method.toUpperCase()} / Instant Prepaid`
+                        : "Prepaid UPI / Card",
+                      paymentStatus:
+                        lo.payment_status || (lo.payment_method === "cod" ? "Awaiting Delivery" : "Paid & Verified"),
+                      shippingAddress: lo.shipping_address || "",
+                      recipientName: lo.customer_name || lo.client_name || user?.fullName || "Maison Member",
+                      recipientPhone: lo.customer_phone || lo.client_phone || user?.phone || "",
+                      carrierName: "BlueDart Express White-Glove Air",
                       status: lo.status || "processing",
                       trackingNumber: lo.tracking_number || "Awaiting Dispatch Scan",
                       eta: lo.eta || "Arriving in 2-3 Business Days",
-                      items: Array.isArray(lo.items) ? lo.items.map((i: any) => ({
-                        name: i.name || "Creation",
-                        shade: i.shade || "Standard",
-                        price: `₹${Number(i.unitPrice || 1099).toLocaleString("en-IN")}`,
-                        image: i.image || FALLBACK_PRODUCT_IMAGE,
-                      })) : [],
+                      items: itemsParsed,
                     });
                   }
                 });
               }
             }
           } catch {}
+
           for (const loc of localOrders) {
             if (!existingIds.has(loc.id)) {
               mapped.push(loc);
@@ -337,7 +512,7 @@ export default function AuthAccountView({
     setLoadingOrders(false);
   };
 
-  // Load and listen to auth state
+  // Load and listen to auth state and live order events
   useEffect(() => {
     initAuth().then((initialUser) => {
       setUser(initialUser);
@@ -367,8 +542,20 @@ export default function AuthAccountView({
       }
     });
 
+    const handleLiveOrderRefresh = () => {
+      const active = getCurrentUser();
+      if (active?.email) {
+        fetchOrders(active.email, active.orders || []);
+      }
+    };
+
+    window.addEventListener("sheaura:orders-updated", handleLiveOrderRefresh);
+    window.addEventListener("sheaura:order-created", handleLiveOrderRefresh);
+
     return () => {
       unsubscribe();
+      window.removeEventListener("sheaura:orders-updated", handleLiveOrderRefresh);
+      window.removeEventListener("sheaura:order-created", handleLiveOrderRefresh);
     };
   }, []);
 
@@ -483,70 +670,55 @@ export default function AuthAccountView({
     showNotification(toastMsg);
   };
 
-  // Download GST Invoice
+  // Download Dynamic Statutory GST Tax Invoice
   const handleDownloadInvoice = (order: OrderHistoryItem) => {
-    const numericTotal = parseInt(order.totalAmount.replace(/[^0-9]/g, ""), 10) || 899;
-    const taxableSubtotal = Math.round((numericTotal / 1.18) * 100) / 100;
-    const totalGst = Math.round((numericTotal - taxableSubtotal) * 100) / 100;
-    const cgstTotal = Math.round((totalGst / 2) * 100) / 100;
-    const sgstTotal = Math.round((totalGst - cgstTotal) * 100) / 100;
+    try {
+      const numericTotal =
+        order.rawTotal ||
+        parseInt(order.totalAmount.replace(/[^0-9]/g, ""), 10) ||
+        1099;
 
-    const invoiceData: InvoiceData = {
-      invoiceNumber: `INV-${order.id.replace(/[^0-9A-Z]/gi, "").slice(-8)}`,
-      invoiceDate: order.date,
-      orderId: order.id,
-      orderDate: order.date,
-      customer: {
-        name: userDisplayName,
-        email: userEmail,
-        phone: addressForm.phone || user?.phone || "+91 98765 43210",
-        address: `${addressForm.street || "Atelier Residence"}, ${addressForm.city || "Mumbai"}, ${addressForm.state || "Maharashtra"} - ${addressForm.postalCode || "400050"}`,
-        city: addressForm.city || "Mumbai",
-        state: addressForm.state || "Maharashtra",
-        pincode: addressForm.postalCode || "400050",
-      },
-      items: order.items.map((item, idx) => ({
-        srNo: idx + 1,
-        description: `${item.name} (${item.shade})`,
-        hsnCode: "3304",
-        qty: 1,
-        unitPrice: Math.round((numericTotal / (order.items.length || 1) / 1.18) * 100) / 100,
-        taxableValue: Math.round((numericTotal / (order.items.length || 1) / 1.18) * 100) / 100,
-        cgstRate: 9,
-        cgstAmount: Math.round((cgstTotal / (order.items.length || 1)) * 100) / 100,
-        sgstRate: 9,
-        sgstAmount: Math.round((sgstTotal / (order.items.length || 1)) * 100) / 100,
-        igstRate: 0,
-        igstAmount: 0,
-        total: Math.round((numericTotal / (order.items.length || 1)) * 100) / 100,
-      })),
-      subtotal: taxableSubtotal,
-      cgstTotal,
-      sgstTotal,
-      igstTotal: 0,
-      totalGst,
-      shippingFee: 0,
-      discountAmount: 0,
-      grandTotal: numericTotal,
-      payment: {
-        method: "UPI / Prepaid",
-        status: "COMPLETED",
-        transactionId: `TXN-${Math.floor(10000000 + Math.random() * 90000000)}`,
-        date: order.date,
-      },
-    };
+      const payload = {
+        id: order.id,
+        orderId: order.id,
+        created_at: order.date,
+        total_price: numericTotal,
+        total_amount: order.totalAmount,
+        subtotal: order.subtotal || numericTotal,
+        discount: order.discountAmount || 0,
+        discount_amount: order.discountAmount || 0,
+        discount_code: order.discountCode,
+        shipping_fee: order.shippingFee || 0,
+        customer_name: order.recipientName || userDisplayName,
+        client_name: order.recipientName || userDisplayName,
+        customer_email: userEmail,
+        client_email: userEmail,
+        customer_phone: order.recipientPhone || addressForm.phone || user?.phone || "+91 98765 43210",
+        client_phone: order.recipientPhone || addressForm.phone || user?.phone || "+91 98765 43210",
+        shipping_address:
+          order.shippingAddress ||
+          `${addressForm.street || "Atelier Residence"}, ${addressForm.city || "Mumbai"}, ${addressForm.state || "Maharashtra"} - ${addressForm.postalCode || "400050"}`,
+        payment_method: order.paymentMethod || "UPI / Instant Prepaid",
+        payment_status: order.paymentStatus || "COMPLETED",
+        status: order.status,
+        items: order.items.map((item) => ({
+          name: item.name,
+          shade: item.shade,
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || Math.round(numericTotal / Math.max(1, order.items.length)),
+          itemTotal: item.itemTotal || (item.unitPrice ? item.unitPrice * (item.quantity || 1) : undefined),
+          price: item.price,
+        })),
+        items_count: order.itemsCount,
+      };
 
-    const invoiceHtml = generateInvoiceHtml(invoiceData);
-    const blob = new Blob([invoiceHtml], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `SheAura-Tax-Invoice-${order.id}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showNotification(`✓ Tax Invoice generated for Order #${order.id}`);
+      const invoiceData = buildInvoiceDataFromAdminOrder(payload);
+      downloadInvoiceHtml(invoiceData);
+      showNotification(`✓ Statutory Tax Invoice for Order #${order.id} downloaded successfully.`);
+    } catch (err) {
+      console.error("[AccountView] Invoice generation notice:", err);
+      showNotification("Could not generate tax invoice. Please try again.");
+    }
   };
 
   const isAdminUser = user?.role === "admin" || userEmail.includes("admin");
@@ -988,6 +1160,7 @@ export default function AuthAccountView({
                   displayedOrders.map((ord) => {
                     const isDelivered = ord.status === "delivered";
                     const isDispatched = ord.status === "dispatched";
+                    const isExpanded = expandedOrderIds.has(ord.id);
 
                     return (
                       <div
@@ -1002,92 +1175,207 @@ export default function AuthAccountView({
                           display: "flex",
                           flexDirection: "column",
                           gap: "18px",
+                          transition: "all 0.25s ease",
                         }}
                       >
-                        {/* Order Header */}
+                        {/* Order Header: ID, Placement Timestamp, Status & Payment Pill */}
                         <div
                           style={{
                             display: "flex",
                             justifyContent: "space-between",
-                            alignItems: "center",
+                            alignItems: "flex-start",
                             flexWrap: "wrap",
-                            gap: "10px",
+                            gap: "12px",
                             paddingBottom: "14px",
                             borderBottom: "1px solid rgba(223, 184, 149, 0.25)",
                           }}
                         >
                           <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                              <span
+                                style={{
+                                  font: "700 12px/1 'Plus Jakarta Sans', sans-serif",
+                                  letterSpacing: "0.12em",
+                                  color: "#2b130c",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                ORDER #{ord.id}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(ord.id, `ord-${ord.id}`)}
+                                title="Copy Order ID"
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  padding: "3px 6px",
+                                  cursor: "pointer",
+                                  color: copiedTrackingId === `ord-${ord.id}` ? "#2e6930" : "#a36a3b",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                  fontSize: "9px",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {copiedTrackingId === `ord-${ord.id}` ? (
+                                  <>
+                                    <Check size={11} strokeWidth={2.6} />
+                                    <span>Copied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={11} />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "10px", color: "#8c766a" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                <Calendar size={11} style={{ color: "#a36a3b" }} />
+                                Placed on <b>{ord.date}</b> {ord.exactTime ? `at ${ord.exactTime}` : ""}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                {ord.itemsCount} piece{ord.itemsCount > 1 ? "s" : ""}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Status and Settlement Badges */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            {ord.discountCode && (
+                              <span
+                                style={{
+                                  padding: "4px 10px",
+                                  borderRadius: "999px",
+                                  fontSize: "8.5px",
+                                  fontWeight: 700,
+                                  letterSpacing: "0.08em",
+                                  textTransform: "uppercase",
+                                  background: "rgba(125, 38, 22, 0.08)",
+                                  color: "#7d2616",
+                                  border: "1px dashed rgba(125, 38, 22, 0.3)",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                <Tag size={10} />
+                                {ord.discountCode}
+                              </span>
+                            )}
+
                             <span
                               style={{
-                                font: "700 11px/1 'Plus Jakarta Sans', sans-serif",
-                                letterSpacing: "0.12em",
-                                color: "#2b130c",
+                                padding: "4px 10px",
+                                borderRadius: "999px",
+                                fontSize: "8.5px",
+                                fontWeight: 700,
+                                letterSpacing: "0.08em",
                                 textTransform: "uppercase",
-                                display: "block",
-                                marginBottom: "3px",
+                                background: "rgba(43, 19, 12, 0.05)",
+                                color: "#2b130c",
+                                border: "1px solid rgba(43, 19, 12, 0.12)",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
                               }}
                             >
-                              ORDER #{ord.id}
+                              <CreditCard size={10} style={{ color: "#a36a3b" }} />
+                              {ord.paymentStatus || "Verified"}
                             </span>
-                            <span style={{ fontSize: "10px", color: "#8c766a" }}>
-                              Placed on {ord.date} · {ord.itemsCount} piece{ord.itemsCount > 1 ? "s" : ""}
+
+                            <span
+                              style={{
+                                padding: "5px 12px",
+                                borderRadius: "999px",
+                                fontSize: "8.5px",
+                                fontWeight: 700,
+                                letterSpacing: "0.12em",
+                                textTransform: "uppercase",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                background: isDelivered
+                                  ? "rgba(46, 105, 48, 0.1)"
+                                  : isDispatched
+                                  ? "rgba(193, 136, 71, 0.15)"
+                                  : "rgba(125, 38, 22, 0.08)",
+                                color: isDelivered ? "#2e6930" : isDispatched ? "#8f5319" : "#7d2616",
+                                border: `1px solid ${
+                                  isDelivered
+                                    ? "rgba(46, 105, 48, 0.3)"
+                                    : isDispatched
+                                    ? "rgba(193, 136, 71, 0.4)"
+                                    : "rgba(125, 38, 22, 0.25)"
+                                }`,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: "6px",
+                                  height: "6px",
+                                  borderRadius: "50%",
+                                  backgroundColor: isDelivered ? "#2e6930" : isDispatched ? "#c18847" : "#7d2616",
+                                  animation: !isDelivered ? "pulse 2s infinite" : "none",
+                                }}
+                              />
+                              {isDelivered
+                                ? "DELIVERED TO RESIDENCE"
+                                : isDispatched
+                                ? "IN WHITE-GLOVE TRANSIT"
+                                : "PROCESSING AT ATELIER"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Delivery Promise / Expected Arrival Banner */}
+                        <div
+                          style={{
+                            background: isDelivered ? "rgba(46, 105, 48, 0.05)" : "rgba(250, 246, 240, 0.8)",
+                            borderRadius: "12px",
+                            padding: "10px 16px",
+                            border: `1px solid ${isDelivered ? "rgba(46, 105, 48, 0.2)" : "rgba(223, 184, 149, 0.3)"}`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: "8px",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            {isDelivered ? (
+                              <CheckCircle2 size={16} style={{ color: "#2e6930" }} />
+                            ) : (
+                              <Truck size={16} style={{ color: "#a36a3b" }} />
+                            )}
+                            <span style={{ fontSize: "11px", color: isDelivered ? "#2e6930" : "#2b130c", fontWeight: 600 }}>
+                              {isDelivered ? (
+                                `Delivered safely to your residence on ${ord.date}`
+                              ) : (
+                                <>
+                                  Estimated Arrival: <b>{ord.eta}</b> via {ord.carrierName || "BlueDart White-Glove Air"}
+                                </>
+                              )}
                             </span>
                           </div>
 
-                          {/* Status Badge */}
-                          <span
-                            style={{
-                              padding: "5px 12px",
-                              borderRadius: "999px",
-                              fontSize: "8.5px",
-                              fontWeight: 700,
-                              letterSpacing: "0.12em",
-                              textTransform: "uppercase",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "5px",
-                              background: isDelivered
-                                ? "rgba(46, 105, 48, 0.1)"
-                                : isDispatched
-                                ? "rgba(193, 136, 71, 0.15)"
-                                : "rgba(125, 38, 22, 0.08)",
-                              color: isDelivered
-                                ? "#2e6930"
-                                : isDispatched
-                                ? "#8f5319"
-                                : "#7d2616",
-                              border: `1px solid ${
-                                isDelivered
-                                  ? "rgba(46, 105, 48, 0.3)"
-                                  : isDispatched
-                                  ? "rgba(193, 136, 71, 0.4)"
-                                  : "rgba(125, 38, 22, 0.25)"
-                              }`,
-                            }}
-                          >
-                            <span
-                              style={{
-                                width: "6px",
-                                height: "6px",
-                                borderRadius: "50%",
-                                backgroundColor: isDelivered ? "#2e6930" : isDispatched ? "#c18847" : "#7d2616",
-                              }}
-                            />
-                            {isDelivered
-                              ? "DELIVERED TO RESIDENCE"
-                              : isDispatched
-                              ? "IN WHITE-GLOVE TRANSIT"
-                              : "PROCESSING AT ATELIER"}
-                          </span>
+                          <div style={{ fontSize: "10px", color: "#765d50" }}>
+                            AWB: <b style={{ color: "#2b130c" }}>{ord.trackingNumber}</b>
+                          </div>
                         </div>
 
-                        {/* Visual Delivery Stepper */}
+                        {/* Visual 4-Stage Fulfillment Stepper */}
                         <div
                           style={{
-                            background: "rgba(250, 246, 240, 0.75)",
+                            background: "rgba(250, 246, 240, 0.6)",
                             borderRadius: "14px",
                             padding: "14px 18px",
-                            border: "1px solid rgba(223, 184, 149, 0.3)",
+                            border: "1px solid rgba(223, 184, 149, 0.25)",
                           }}
                         >
                           <div
@@ -1102,20 +1390,21 @@ export default function AuthAccountView({
                             <div style={{ textAlign: "center" }}>
                               <div
                                 style={{
-                                  width: "22px",
-                                  height: "22px",
+                                  width: "24px",
+                                  height: "24px",
                                   borderRadius: "50%",
                                   background: "#2b130c",
                                   color: "#ffffff",
                                   display: "grid",
                                   placeItems: "center",
                                   margin: "0 auto 4px",
+                                  boxShadow: "0 2px 6px rgba(43, 19, 12, 0.2)",
                                 }}
                               >
-                                <Check size={11} strokeWidth={2.8} />
+                                <Check size={12} strokeWidth={2.8} />
                               </div>
                               <span style={{ fontSize: "8.5px", fontWeight: 700, color: "#2b130c", display: "block" }}>
-                                Confirmed
+                                Order Confirmed
                               </span>
                               <small style={{ fontSize: "7.5px", color: "#8c766a" }}>Payment Verified</small>
                             </div>
@@ -1124,30 +1413,31 @@ export default function AuthAccountView({
                             <div style={{ textAlign: "center" }}>
                               <div
                                 style={{
-                                  width: "22px",
-                                  height: "22px",
+                                  width: "24px",
+                                  height: "24px",
                                   borderRadius: "50%",
                                   background: "#2b130c",
                                   color: "#ffffff",
                                   display: "grid",
                                   placeItems: "center",
                                   margin: "0 auto 4px",
+                                  boxShadow: "0 2px 6px rgba(43, 19, 12, 0.2)",
                                 }}
                               >
-                                <Check size={11} strokeWidth={2.8} />
+                                <Check size={12} strokeWidth={2.8} />
                               </div>
                               <span style={{ fontSize: "8.5px", fontWeight: 700, color: "#2b130c", display: "block" }}>
                                 Atelier Packing
                               </span>
-                              <small style={{ fontSize: "7.5px", color: "#8c766a" }}>Silk Wrapped</small>
+                              <small style={{ fontSize: "7.5px", color: "#8c766a" }}>Silk Hand-Wrapped</small>
                             </div>
 
                             {/* Step 3: Dispatched */}
                             <div style={{ textAlign: "center" }}>
                               <div
                                 style={{
-                                  width: "22px",
-                                  height: "22px",
+                                  width: "24px",
+                                  height: "24px",
                                   borderRadius: "50%",
                                   background: isDispatched || isDelivered ? "#2b130c" : "rgba(43, 19, 12, 0.15)",
                                   color: isDispatched || isDelivered ? "#ffffff" : "#765d50",
@@ -1156,7 +1446,7 @@ export default function AuthAccountView({
                                   margin: "0 auto 4px",
                                 }}
                               >
-                                {isDispatched || isDelivered ? <Truck size={11} /> : <Clock size={11} />}
+                                {isDispatched || isDelivered ? <Truck size={12} /> : <Clock size={12} />}
                               </div>
                               <span
                                 style={{
@@ -1166,7 +1456,7 @@ export default function AuthAccountView({
                                   display: "block",
                                 }}
                               >
-                                Dispatched
+                                In Transit
                               </span>
                               <small style={{ fontSize: "7.5px", color: "#8c766a" }}>
                                 {ord.trackingNumber?.startsWith("EXP") ? "BlueDart Air" : "Express Transit"}
@@ -1177,8 +1467,8 @@ export default function AuthAccountView({
                             <div style={{ textAlign: "center" }}>
                               <div
                                 style={{
-                                  width: "22px",
-                                  height: "22px",
+                                  width: "24px",
+                                  height: "24px",
                                   borderRadius: "50%",
                                   background: isDelivered ? "#2e6930" : "rgba(43, 19, 12, 0.15)",
                                   color: isDelivered ? "#ffffff" : "#765d50",
@@ -1187,7 +1477,7 @@ export default function AuthAccountView({
                                   margin: "0 auto 4px",
                                 }}
                               >
-                                {isDelivered ? <Check size={11} strokeWidth={2.8} /> : <Home size={11} />}
+                                {isDelivered ? <Check size={12} strokeWidth={2.8} /> : <Home size={12} />}
                               </div>
                               <span
                                 style={{
@@ -1200,58 +1490,254 @@ export default function AuthAccountView({
                                 Delivered
                               </span>
                               <small style={{ fontSize: "7.5px", color: "#8c766a" }}>
-                                {isDelivered ? "Delivered" : "In 2-3 Days"}
+                                {isDelivered ? "Residence Delivery" : "Final Route"}
                               </small>
                             </div>
                           </div>
                         </div>
 
-                        {/* Items Row */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                          {ord.items.map((item, idx) => (
-                            <div
-                              key={idx}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: "14px",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  onError={(e) => {
-                                    e.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
-                                  }}
-                                  style={{
-                                    width: "52px",
-                                    height: "52px",
-                                    borderRadius: "10px",
-                                    objectFit: "cover",
-                                    border: "1px solid rgba(223, 184, 149, 0.35)",
-                                    flexShrink: 0,
-                                    backgroundColor: "#fcfaf7",
-                                  }}
-                                />
-                                <div>
-                                  <h4 style={{ font: "500 17px/1.2 'Cormorant Garamond', serif", color: "#2b130c", margin: "0 0 2px" }}>
-                                    {item.name}
-                                  </h4>
-                                  <span style={{ fontSize: "9px", color: "#765d50" }}>
-                                    Shade: {item.shade}
-                                  </span>
+                        {/* WHAT She Ordered: High-End Item Manifest with Line Pricing & "Buy Again" */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                          <span style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#8c766a" }}>
+                            Itemized Manifest ({ord.items.length} {ord.items.length > 1 ? "Items" : "Item"})
+                          </span>
+
+                          {ord.items.map((item, idx) => {
+                            const qty = item.quantity || 1;
+                            const unitPriceVal = item.unitPrice || 899;
+                            const lineTotalVal = item.itemTotal || unitPriceVal * qty;
+
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  flexWrap: "wrap",
+                                  gap: "14px",
+                                  padding: "12px 14px",
+                                  borderRadius: "12px",
+                                  background: "#fcfaf7",
+                                  border: "1px solid rgba(223, 184, 149, 0.3)",
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                                  <img
+                                    src={item.image}
+                                    alt={item.name}
+                                    onError={(e) => {
+                                      e.currentTarget.src = FALLBACK_PRODUCT_IMAGE;
+                                    }}
+                                    style={{
+                                      width: "56px",
+                                      height: "56px",
+                                      borderRadius: "10px",
+                                      objectFit: "cover",
+                                      border: "1px solid rgba(223, 184, 149, 0.35)",
+                                      flexShrink: 0,
+                                      backgroundColor: "#ffffff",
+                                    }}
+                                  />
+                                  <div>
+                                    <h4
+                                      style={{
+                                        font: "600 17px/1.2 'Cormorant Garamond', serif",
+                                        color: "#2b130c",
+                                        margin: "0 0 4px",
+                                      }}
+                                    >
+                                      {item.name}
+                                    </h4>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                      <span
+                                        style={{
+                                          fontSize: "9px",
+                                          padding: "2px 8px",
+                                          borderRadius: "999px",
+                                          background: "rgba(193, 136, 71, 0.12)",
+                                          color: "#7d4416",
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        Shade: {item.shade}
+                                      </span>
+                                      <span style={{ fontSize: "10px", color: "#8c766a" }}>
+                                        Qty: <b>{qty}</b> × ₹{unitPriceVal.toLocaleString("en-IN")}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                                  <div style={{ textAlign: "right" }}>
+                                    <span style={{ fontSize: "8.5px", color: "#8c766a", display: "block" }}>Item Subtotal</span>
+                                    <b style={{ font: "700 13px/1 'Plus Jakarta Sans', sans-serif", color: "#2b130c" }}>
+                                      ₹{lineTotalVal.toLocaleString("en-IN")}
+                                    </b>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleBuyAgain(item)}
+                                    title="Add this creation back to your vanity bag"
+                                    style={{
+                                      padding: "7px 12px",
+                                      borderRadius: "999px",
+                                      background: "#ffffff",
+                                      border: "1px solid rgba(43, 19, 12, 0.3)",
+                                      color: "#2b130c",
+                                      fontSize: "8.5px",
+                                      fontWeight: 700,
+                                      letterSpacing: "0.08em",
+                                      textTransform: "uppercase",
+                                      cursor: "pointer",
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "5px",
+                                      boxShadow: "0 2px 5px rgba(0,0,0,0.03)",
+                                      transition: "all 0.2s ease",
+                                    }}
+                                  >
+                                    <RotateCcw size={10} style={{ color: "#7d2616" }} />
+                                    <span>Buy Again</span>
+                                  </button>
                                 </div>
                               </div>
-                              <b style={{ font: "700 12px/1 'Plus Jakarta Sans', sans-serif", color: "#2b130c" }}>
-                                {item.price}
-                              </b>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
 
-                        {/* Order Footer & Actions */}
+                        {/* Collapsible Order Dossier: WHERE Is It, Logistics, and Financial Breakdown */}
+                        {isExpanded && (
+                          <div
+                            style={{
+                              background: "#fcfaf7",
+                              border: "1px solid rgba(223, 184, 149, 0.4)",
+                              borderRadius: "14px",
+                              padding: "20px",
+                              display: "grid",
+                              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                              gap: "20px",
+                              animation: "fadeIn 0.3s ease",
+                            }}
+                          >
+                            {/* Dossier Pillar 1: WHERE Is It (Delivery Destination) */}
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+                                <MapPin size={13} style={{ color: "#7d2616" }} />
+                                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#2b130c" }}>
+                                  Delivery Residence
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#2b130c", lineHeight: "1.6" }}>
+                                <b>{ord.recipientName || userDisplayName}</b>
+                                <div style={{ color: "#765d50", marginTop: "2px" }}>
+                                  {ord.shippingAddress || `${addressForm.street || "Haute Luxury Residence"}, ${addressForm.city || "Mumbai"}, ${addressForm.state || "Maharashtra"} - ${addressForm.postalCode || "400001"}`}
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "6px", color: "#8c766a", fontSize: "10px" }}>
+                                  <Phone size={10} style={{ color: "#a36a3b" }} />
+                                  <span>{ord.recipientPhone || addressForm.phone || user?.phone || "+91 (Mobile on file)"}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Dossier Pillar 2: Logistics & Air Courier Waybill */}
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+                                <Truck size={13} style={{ color: "#a36a3b" }} />
+                                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#2b130c" }}>
+                                  Courier & Live Waybill
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#2b130c", lineHeight: "1.6" }}>
+                                <div>
+                                  Carrier: <b>{ord.carrierName || "BlueDart Express White-Glove Air"}</b>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                                  <span>AWB: <b>{ord.trackingNumber}</b></span>
+                                  <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(ord.trackingNumber, `awb-${ord.trackingNumber}`)}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      cursor: "pointer",
+                                      color: copiedTrackingId === `awb-${ord.trackingNumber}` ? "#2e6930" : "#7d2616",
+                                      padding: "0",
+                                      fontSize: "9px",
+                                      fontWeight: 600,
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "3px",
+                                    }}
+                                  >
+                                    {copiedTrackingId === `awb-${ord.trackingNumber}` ? (
+                                      <>
+                                        <Check size={10} />
+                                        <span>Copied</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy size={10} />
+                                        <span>Copy AWB</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                                <div style={{ fontSize: "10px", color: "#765d50", marginTop: "4px" }}>
+                                  Current Status: {isDelivered ? "Delivered & Signed" : "Transit via Direct Metro Hub"}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Dossier Pillar 3: Financial Settlement & Tax Receipt */}
+                            <div style={{ borderLeft: "1px solid rgba(223, 184, 149, 0.25)", paddingLeft: "16px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+                                <FileText size={13} style={{ color: "#2e6930" }} />
+                                <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#2b130c" }}>
+                                  Settlement & Tax
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", gap: "5px", fontSize: "10.5px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", color: "#765d50" }}>
+                                  <span>Items Subtotal:</span>
+                                  <span>₹{(ord.subtotal || ord.rawTotal || 1099).toLocaleString("en-IN")}</span>
+                                </div>
+                                {ord.discountAmount ? (
+                                  <div style={{ display: "flex", justifyContent: "space-between", color: "#7d2616", fontWeight: 600 }}>
+                                    <span>Privilege ({ord.discountCode || "Promo"}):</span>
+                                    <span>-₹{ord.discountAmount.toLocaleString("en-IN")}</span>
+                                  </div>
+                                ) : null}
+                                <div style={{ display: "flex", justifyContent: "space-between", color: "#2e6930" }}>
+                                  <span>White-Glove Shipping:</span>
+                                  <span>COMPLIMENTARY</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", color: "#8c766a", fontSize: "9.5px" }}>
+                                  <span>Statutory Tax (GST):</span>
+                                  <span>Included In Total</span>
+                                </div>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    color: "#2b130c",
+                                    fontWeight: 700,
+                                    paddingTop: "6px",
+                                    borderTop: "1px dashed rgba(223, 184, 149, 0.5)",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  <span>Net Total Paid:</span>
+                                  <span>{ord.totalAmount}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Order Footer & Action Controls */}
                         <div
                           style={{
                             display: "flex",
@@ -1263,11 +1749,31 @@ export default function AuthAccountView({
                             borderTop: "1px solid rgba(223, 184, 149, 0.25)",
                           }}
                         >
-                          <div style={{ fontSize: "10px", color: "#765d50" }}>
-                            Tracking ID: <b style={{ color: "#2b130c" }}>{ord.trackingNumber}</b> · Total Paid: <b style={{ color: "#2b130c" }}>{ord.totalAmount}</b>
-                          </div>
+                          {/* Left: Accordion Expand Toggle */}
+                          <button
+                            type="button"
+                            onClick={() => toggleOrderExpanded(ord.id)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              padding: "4px 0",
+                              color: "#2b130c",
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              letterSpacing: "0.08em",
+                              textTransform: "uppercase",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            <span>{isExpanded ? "Hide Order Dossier" : "View Full Order Dossier"}</span>
+                            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          </button>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          {/* Right: Action Buttons */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                             <button
                               type="button"
                               onClick={() => setTrackingOrder(ord)}
@@ -1312,6 +1818,29 @@ export default function AuthAccountView({
                             >
                               <FileText size={11} />
                               <span>Tax Invoice</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setSupportModalOrder(ord)}
+                              style={{
+                                padding: "6px 12px",
+                                borderRadius: "999px",
+                                border: "1px solid rgba(43, 19, 12, 0.2)",
+                                background: "transparent",
+                                color: "#765d50",
+                                fontSize: "8.5px",
+                                fontWeight: 600,
+                                letterSpacing: "0.08em",
+                                textTransform: "uppercase",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              <HelpCircle size={11} />
+                              <span>Concierge Help</span>
                             </button>
                           </div>
                         </div>
@@ -1967,7 +2496,7 @@ export default function AuthAccountView({
                       Waybill Number: <b>{trackingOrder.trackingNumber}</b>
                     </div>
                     <div style={{ fontSize: "10px", color: "#765d50", marginTop: "3px" }}>
-                      Carrier: BlueDart White-Glove Express Air · Estimated: {trackingOrder.eta}
+                      Carrier: {trackingOrder.carrierName || "BlueDart White-Glove Express Air"} · Estimated: {trackingOrder.eta}
                     </div>
                   </div>
 
@@ -2015,6 +2544,130 @@ export default function AuthAccountView({
                   >
                     Close Tracking Window
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Concierge Order Support Modal */}
+            {supportModalOrder && (
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  backgroundColor: "rgba(35, 17, 12, 0.65)",
+                  backdropFilter: "blur(8px)",
+                  display: "grid",
+                  placeItems: "center",
+                  zIndex: 9999,
+                  padding: "20px",
+                }}
+                onClick={() => setSupportModalOrder(null)}
+              >
+                <div
+                  style={{
+                    background: "#ffffff",
+                    borderRadius: "20px",
+                    maxWidth: "520px",
+                    width: "100%",
+                    padding: "32px",
+                    boxShadow: "0 25px 60px rgba(0, 0, 0, 0.3)",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+                    <div>
+                      <span style={{ fontSize: "8.5px", fontWeight: 700, letterSpacing: "0.16em", color: "#7d2616", textTransform: "uppercase" }}>
+                        Maison She’Aura Priority Care
+                      </span>
+                      <h3 style={{ font: "500 24px 'Cormorant Garamond', serif", color: "#2b130c", margin: "2px 0 4px" }}>
+                        Concierge Assistance
+                      </h3>
+                      <p style={{ fontSize: "11px", color: "#765d50", margin: 0 }}>
+                        Reference: Order <b>#{supportModalOrder.id}</b>
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSupportModalOrder(null)}
+                      style={{ background: "none", border: "none", cursor: "pointer", padding: "6px" }}
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "rgba(250, 246, 240, 0.85)",
+                      borderRadius: "14px",
+                      padding: "16px 20px",
+                      border: "1px solid rgba(223, 184, 149, 0.4)",
+                      marginBottom: "20px",
+                    }}
+                  >
+                    <p style={{ fontSize: "11px", color: "#2b130c", lineHeight: "1.6", margin: "0 0 10px" }}>
+                      Our dedicated beauty advisors and dispatch managers are ready to assist with address modifications, courier escalation, or shade exchanges.
+                    </p>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "11px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#2b130c" }}>
+                        <Phone size={13} style={{ color: "#7d2616" }} />
+                        <span>Direct Atelier Hotline: <b>+91 (022) 2854-AURA (2872)</b></span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#2b130c" }}>
+                        <Mail size={13} style={{ color: "#a36a3b" }} />
+                        <span>Priority Email: <b>concierge@sheaura.com</b></span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#2b130c" }}>
+                        <Clock size={13} style={{ color: "#2e6930" }} />
+                        <span>Operating Hours: <b>Mon – Sun · 8:00 AM – 10:00 PM IST</b></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <a
+                      href={`mailto:concierge@sheaura.com?subject=Inquiry for She'Aura Order %23${supportModalOrder.id}&body=Hello Concierge Team,%0D%0A%0D%0AI would like assistance with my order %23${supportModalOrder.id}.`}
+                      style={{
+                        flex: 1,
+                        padding: "11px",
+                        borderRadius: "999px",
+                        background: "#2b130c",
+                        color: "#ffffff",
+                        textAlign: "center",
+                        fontSize: "9px",
+                        fontWeight: 700,
+                        letterSpacing: "0.12em",
+                        textTransform: "uppercase",
+                        textDecoration: "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <Mail size={12} />
+                      <span>Email Concierge</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => setSupportModalOrder(null)}
+                      style={{
+                        padding: "11px 20px",
+                        borderRadius: "999px",
+                        background: "transparent",
+                        border: "1px solid rgba(43, 19, 12, 0.3)",
+                        color: "#2b130c",
+                        fontSize: "9px",
+                        fontWeight: 700,
+                        letterSpacing: "0.12em",
+                        textTransform: "uppercase",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

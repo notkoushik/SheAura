@@ -13,19 +13,39 @@ export interface AddressBookItem {
 }
 
 export interface OrderItem {
+  id?: string;
+  productId?: string;
   name: string;
-  shade: string;
+  shade?: string;
   price: string;
+  unitPrice?: number;
+  quantity?: number;
+  itemTotal?: number;
   image: string;
 }
 
 export interface OrderHistoryItem {
   id: string;
   date: string;
+  exactTime?: string;
   itemsCount: number;
   totalAmount: string;
+  rawTotal?: number;
+  subtotal?: number;
+  discountCode?: string;
+  discountAmount?: number;
+  shippingFee?: number;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  shippingAddress?: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
   status: "dispatched" | "delivered" | "processing";
   trackingNumber: string;
+  carrierName?: string;
   eta: string;
   items: OrderItem[];
 }

@@ -8,6 +8,8 @@ import {
   getAdminStats,
   adminLogin,
   verifyAdminSession,
+  getTaxSettingsHandler,
+  updateTaxSettingsHandler,
 } from "../controllers/adminController.js";
 import { requireAdmin } from "../middleware/auth.js";
 import { checkoutLimiter, adminLoginLimiter } from "../middleware/security.js";
@@ -45,4 +47,8 @@ apiRouter.get("/admin/verify-session", verifyAdminSession);
 apiRouter.get("/admin/stats", requireAdmin, getAdminStats);
 apiRouter.get("/admin/orders", requireAdmin, getAdminOrders);
 apiRouter.patch("/admin/orders/:id", requireAdmin, updateOrderStatus);
+
+// Statutory Tax & GSTIN Configuration (Public Read / Admin Write)
+apiRouter.get("/settings/tax", getTaxSettingsHandler);
+apiRouter.put("/settings/tax", requireAdmin, updateTaxSettingsHandler);
 
